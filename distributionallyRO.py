@@ -19,9 +19,9 @@ class ProjetcedDRO(AdversarialTraining):
     def attack(self, budget, data, steps=15):
         lr = 0.001
         images, labels = data
-        images_adv = images.clone().detach()
+        # Load an initialized batch of adversarial examples on a device
+        images_adv = images.clone().detach().to(self.device)
         images_adv.requires_grad_(True)
-        images_adv = images_adv.to(self.device)
 
         desirable_distance = budget * math.sqrt(images.size()[0])
 
@@ -77,9 +77,8 @@ class LagrangianDRO(AdversarialTraining):
         """
         
         images, labels = data
-        images_adv = images.clone().detach()
+        images_adv = images.clone().detach().to(self.device)
         images_adv.requires_grad_(True)
-        images_adv = images_adv.to(self.device)
         
         for i in range(steps):
             if images_adv.grad is not None:
@@ -120,9 +119,8 @@ class FrankWolfeDRO(AdversarialTraining):
         """
 
         images, labels = data
-        images_adv = images.clone().detach()
+        images_adv = images.clone().detach().to(self.device)
         images_adv.requires_grad_(True)
-        images_adv = images_adv.to(self.device)
         
         for i in range(steps):
             if images_adv.grad is not None:

@@ -27,10 +27,11 @@ class AdversarialTraining:
 
         # Use GPU for computation if it is available
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.model.to(self.device) # Load the neural network on GPU if it is available
+        # Load a model on an appropriate device
+        self.model.to(self.device)
         print("The neural network is now loaded on {}.".format(self.device))
 
-    def attack(self, budget, data, steps=15, device='cpu'):
+    def attack(self, budget, data, steps=15):
         """
         Launch an adversarial attack. 
         This is equivalent to solving the inner maximization problem in the
@@ -72,11 +73,11 @@ class AdversarialTraining:
             for i, data in enumerate(data_loader, 0):
                 images, labels = data
                 # Input images and labels are loaded by this method.
-                # Hence, they do not need to be loaded by the adversarial
-                # attack method. 
-                # However, the attack method should load images_adv on GPU. 
+                # Hence, they do not need to be loaded by the attack method. 
+                # However, the attack method should load images_adv on GPU
+                # before returning the output. 
                 images, labels = images.to(self.device), labels.to(self.device)
-                images_adv, labels = self.attack(budget, data, steps=steps_adv, device=self.device)
+                images_adv, labels = self.attack(budget, data, steps=steps_adv)
 
                 optimizer.zero_grad()
                 outputs = self.model(images_adv)
@@ -89,7 +90,7 @@ class AdversarialTraining:
 class ProjectedGradientTraining(AdversarialTraining):
     """
     Execute adversarial training using projected gradient descent (PGD).
-    This class of attacks subsumes FGSM and IFGSM. 
+    The PGD-based attack subsumes IFGSM. 
     """
 
     def __init__(self, model, loss_criterion, q=2):
@@ -108,7 +109,7 @@ class ProjectedGradientTraining(AdversarialTraining):
             self.q = q
         self.pgd = PGD(model, loss_criterion, norm=self.q, max_iter=15)
 
-    def attack(self, budget, data, steps=15, device='cpu'):
+    def attack(self, budget, data, steps=15):
         """
         Launch an FGSM or IGFSM attack.
         
@@ -119,6 +120,6 @@ class ProjectedGradientTraining(AdversarialTraining):
         """
 
         _, labels = data
-        # The generatePerturbation method should load images_adv on GPU. 
-        images_adv = self.pgd.generatePerturbation(data, budget)
+        # The output of generatePerturbation should already be loaded on GPU. 
+        images_adv = self.pgd.generatePerturbation(data, budget, max_iter=steps)
         return images_adv, labels

@@ -34,9 +34,10 @@ class FGSM:
         """
 
         images, _ = data
-        images = images.numpy()
-        images_adv = self.attack.generate(x=images, eps=budget, minimal=minimal, eps_steps=0.005, eps_max=1.0, batch_size=self.batch_size)
+        images_adv = self.attack.generate(x=images.numpy(), eps=budget, minimal=minimal, eps_steps=0.005, eps_max=1.0, batch_size=self.batch_size)
         images_adv = torch.from_numpy(images_adv)
+
+        # The output to be returned should be loaded on an appropriate device. 
         return images_adv.to(self.device)
 
 class PGD:
@@ -57,15 +58,16 @@ class PGD:
         # Use GPU for computation if it is available
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    def generatePerturbation(self, data, budget, device='cpu'):
+    def generatePerturbation(self, data, budget, max_iter=20):
         images, _ = data
-        images = images.numpy()
         
         # eps_step is not allowed to be larger than budget according to the 
         # documentation of ART. 
         eps_step = budget / 8
-        images_adv = self.attack.generate(x=images, norm=self.norm, eps=budget, eps_step=eps_step, batch_size=self.batch_size)
+        images_adv = self.attack.generate(x=images.numpy(), norm=self.norm, eps=budget, eps_step=eps_step, max_iter=max_iter, batch_size=self.batch_size)
         images_adv = torch.from_numpy(images_adv)
+
+        # The output to be returned should be loaded on an appropriate device. 
         return images_adv.to(self.device)
 
 if __name__ == "__main__":
