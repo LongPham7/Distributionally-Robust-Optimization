@@ -10,8 +10,9 @@ img_rows, img_cols = 28, 28
 
 class FGSM:
 
-    def __init__(self, model, loss_criterion, batch_size=128):
+    def __init__(self, model, loss_criterion, norm=np.inf, batch_size=128):
         self.pytorch_model = wrapModel(model, loss_criterion)
+        self.norm = norm
         self.batch_size = batch_size
         self.attack = FastGradientMethod(self.pytorch_model, batch_size=batch_size)
         
@@ -21,6 +22,8 @@ class FGSM:
     def generatePerturbation(self, data, budget, minimal=False):
         """
         Generate adversarial examples from a given batch of images. 
+        The input data should have already been loaded on an appropriate
+        device. 
 
         Arguments:
             data: pairs of a batch of images and a batch of labels. The batch
@@ -34,7 +37,7 @@ class FGSM:
         """
 
         images, _ = data
-        images_adv = self.attack.generate(x=images.numpy(), eps=budget, minimal=minimal, eps_steps=0.005, eps_max=1.0, batch_size=self.batch_size)
+        images_adv = self.attack.generate(x=images.numpy(), norm=self.norm, eps=budget, minimal=minimal, eps_steps=0.005, eps_max=1.0, batch_size=self.batch_size)
         images_adv = torch.from_numpy(images_adv)
 
         # The output to be returned should be loaded on an appropriate device. 
@@ -86,7 +89,7 @@ if __name__ == "__main__":
     pytorch_model = pgd.pytorch_model
 
     # Read MNIST dataset
-    test_loader = retrieveMNISTTestData(batch_size=1000)
+    test_loader = retrieveMNISTTestData(batch_size=1024)
 
     # Craft adversarial examples with FGSM
     epsilon = 0.1  # Maximum perturbation

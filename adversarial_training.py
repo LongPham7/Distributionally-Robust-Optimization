@@ -4,7 +4,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 from util_MNIST import retrieveMNISTTrainingData
-from adversarial_attack import PGD
+from adversarial_attack import FGSM, PGD
 
 class AdversarialTraining:
     """
@@ -74,9 +74,11 @@ class AdversarialTraining:
                 images, labels = data
                 # Input images and labels are loaded by this method.
                 # Hence, they do not need to be loaded by the attack method. 
+                images, labels = images.to(self.device), labels.to(self.device)
+                data = (images, labels)
+
                 # However, the attack method should load images_adv on GPU
                 # before returning the output. 
-                images, labels = images.to(self.device), labels.to(self.device)
                 images_adv, labels = self.attack(budget, data, steps=steps_adv)
 
                 optimizer.zero_grad()
@@ -90,7 +92,11 @@ class AdversarialTraining:
 class ProjectedGradientTraining(AdversarialTraining):
     """
     Execute adversarial training using projected gradient descent (PGD).
-    The PGD-based attack subsumes IFGSM. 
+    The PGD-based attack subsumes FGSM and IFGSM.
+    If the number of iterations in an adversarial attack is 1, FGSM is used to
+    generate adversarial examples; otherwise, IFGSM/PGD is used. 
+    Note that random restart are not used here, unlike in the PGD descirbed by
+    Madry et al. 
     """
 
     def __init__(self, model, loss_criterion, q=2):
@@ -108,10 +114,12 @@ class ProjectedGradientTraining(AdversarialTraining):
         else:
             self.q = q
         self.pgd = PGD(model, loss_criterion, norm=self.q, max_iter=15)
+        self.fgsm = FGSM(model, loss_criterion, norm=self.q)
 
     def attack(self, budget, data, steps=15):
         """
-        Launch an FGSM or IGFSM attack.
+        Launch an FGSM or IGFSM attack. These two are distinguished based on
+        the number of iterations for each minibatch. 
         
         Arguments:
             steps: number of iterations in the adversarial attack.
@@ -121,5 +129,8 @@ class ProjectedGradientTraining(AdversarialTraining):
 
         _, labels = data
         # The output of generatePerturbation should already be loaded on GPU. 
-        images_adv = self.pgd.generatePerturbation(data, budget, max_iter=steps)
+        if steps == 1:
+            images_adv = self.fgsm.generatePerturbation(data, budget, minimal=False)
+        else:
+            images_adv = self.pgd.generatePerturbation(data, budget, max_iter=steps)
         return images_adv, labels

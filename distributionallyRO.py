@@ -23,6 +23,7 @@ class ProjetcedDRO(AdversarialTraining):
         images_adv = images.clone().detach().to(self.device)
         images_adv.requires_grad_(True)
 
+        # images.size()[0] corresponds to the batch size. 
         desirable_distance = budget * math.sqrt(images.size()[0])
 
         # Choose a random strating point where the constraint for perturbations

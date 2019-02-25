@@ -1,24 +1,52 @@
 import torch
 import torch.nn as nn
-from util_model import loadModel, SimpleNeuralNet
+from util_model import loadModel, SimpleNeuralNet, MNISTClassifier
 from util_MNIST import retrieveMNISTTrainingData
-from distributionallyRO import ProjetcedDRO, FrankWolfeDRO
+from distributionallyRO import ProjetcedDRO, LagrangianDRO, FrankWolfeDRO
+from adversarial_training import ProjectedGradientTraining
+
+def trainDROModel(dro_type, epochs, steps_adv, budget, activation, batch_size, loss_criterion, cost_function=None):
+    model = MNISTClassifier(activation=activation)
+    if dro_type == 'PGD':
+        train_module = ProjetcedDRO(model, loss_criterion)
+    elif dro_type == 'Lag':
+        assert cost_function is not None
+        train_module = LagrangianDRO(model, loss_criterion, cost_function)
+    elif dro_type == 'FW':
+        train_module = FrankWolfeDRO(model, loss_criterion, p=2, q=2)
+    else:
+        raise ValueError("The type of DRO is not valid.")
+
+    train_module.train(budget=budget, batch_size=batch_size, epochs=epochs, steps_adv=steps_adv)
+    if dro_type == 'PGD':
+        filename = 'pgdDRO_activation={}_epsilon={}.pt'.format(activation, budget)
+    elif dro_type == 'Lag':
+        filename = 'lagDRO_activation={}_epsilon={}.pt'.format(activation, budget)
+    else:
+        filename = 'fwDRO_activation={}_epsilon={}.pt'.format(activation, budget)
+    filepath = "./models/{}".format(filename)
+    torch.save(model, filepath)
+    print("A neural network adversarially trained using {} is now saved at {}.".format(dro_type, filepath))
 
 if __name__ == "__main__":
+    epochs = 1
+    steps_adv = 15
+    epsilon = 0.1
+    batch_size = 128
+    loss_criterion = nn.CrossEntropyLoss()
+    cost_function = lambda x, y: torch.dist(x, y, p=2) ** 2
+
+    trainDROModel('PGD', epochs, steps_adv, epsilon, 'relu', batch_size, loss_criterion, cost_function=None)
+    trainDROModel('FW', epochs, steps_adv, epsilon, 'relu', batch_size, loss_criterion, cost_function=None)
+
+    trainDROModel('PGD', epochs, steps_adv, epsilon, 'elu', batch_size, loss_criterion, cost_function=None)
+    trainDROModel('FW', epochs, steps_adv, epsilon, 'elu', batch_size, loss_criterion, cost_function=None)
+
+    """
     model = SimpleNeuralNet()
     model = loadModel(model, 'C:\\Users\\famth\\Desktop\\DRO\\models\\SimpleModel.pt')
     loss_criterion = nn.CrossEntropyLoss()
     dro = FrankWolfeDRO(model, loss_criterion, p=2, q=2)
-    #dro = ProjetcedDRO(model, loss_criterion)
     dro.train(budget=1, batch_size=128, epochs=1, steps_adv=5)
-
-    """
-    data_loader = retrieveMNISTTrainingData(batch_size=1, shuffle=True)
-    iterator = iter(data_loader)
-    images, labels = iterator.next()
-    displayImage(images, labels)
-    images_adv, _ = dro.attack(2, (images, labels))
-    images_adv.requires_grad = False
-    displayImage(images_adv, labels)
     """
     

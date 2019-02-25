@@ -51,7 +51,11 @@ def randomStart(center, epsilon):
         a random point on the perimeter of the specified L2-ball
     """
 
+    # Use GPU for computation if it is available
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
     direction = torch.rand(center.size()) * 2 - 1
+    direction = direction.to(device)
     length = torch.norm(direction, p=2).item()
     center.data.add_(epsilon / length * direction)
     center.data.clamp_(0, 1)
