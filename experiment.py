@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from util_model import loadModel, SimpleNeuralNet, MNISTClassifier
+from util_model import SimpleNeuralNet, MNISTClassifier
 from util_MNIST import retrieveMNISTTrainingData
 from distributionallyRO import ProjetcedDRO, LagrangianDRO, FrankWolfeDRO
 from adversarial_training import ProjectedGradientTraining
@@ -41,13 +41,5 @@ if __name__ == "__main__":
 
     trainDROModel('PGD', epochs, steps_adv, epsilon, 'elu', batch_size, loss_criterion, cost_function=None)
     trainDROModel('FW', epochs, steps_adv, epsilon, 'elu', batch_size, loss_criterion, cost_function=None)
-    """
-
-    """
-    model = SimpleNeuralNet()
-    model = loadModel(model, 'C:\\Users\\famth\\Desktop\\DRO\\models\\SimpleModel.pt')
-    loss_criterion = nn.CrossEntropyLoss()
-    dro = FrankWolfeDRO(model, loss_criterion, p=2, q=2)
-    dro.train(budget=1, batch_size=128, epochs=1, steps_adv=5)
     """
     

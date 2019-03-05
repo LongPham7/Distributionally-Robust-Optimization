@@ -118,7 +118,9 @@ def loadModel(model, filepath):
         filepath: path to the .pt file that stores the parameters to be loaded
     """
 
-    model.load_state_dict(torch.load(filepath))
+    # Use GPU for computation if it is available
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model.load_state_dict(torch.load(filepath, map_location=device))
     "The model is now loaded."
     return model
 

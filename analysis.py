@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
 from util_MNIST import retrieveMNISTTestData
-from util_model import loadModel, evaluateModel, SimpleNeuralNet
+from util_model import MNISTClassifier, SimpleNeuralNet, loadModel, evaluateModel
 from adversarial_attack import FGSM, PGD
 
 class Analysis:
@@ -63,20 +63,61 @@ class Analysis:
             
             for j in range(images.size(0)):
                 minimal_perturbations.append(torch.dist(images[j], images_adv[j], p=norm).item())
-        
+        return minimal_perturbations
+
+    def displayHistogram(self, minimal_perturbations, title=None):
         plt.hist(minimal_perturbations, bins=50, range=(0,1))
         plt.ylabel("Frequency")
-        plt.ylabel("Minimal perturbation")
+        plt.xlabel("Minimal perturbation")
+        if title is not None:
+            plt.title(title)
         plt.show()
 
+class ERMAnalysis:
+
+    def __init__(self):
+        model_relu = MNISTClassifier(activation='relu')
+        model_elu = MNISTClassifier(activation='elu')
+        filepath_relu = r".\ERM_models\MNISTClassifier_relu.pt"
+        filepath_elu = r".\ERM_models\MNISTClassifier_elu.pt"
+        self.analyzer_relu = Analysis(model_relu, filepath_relu)
+        self.analyzer_elu = Analysis(model_elu, filepath_elu)
+
+    def analysisResult(self, analyzer):
+        test_accuracy = analyzer.testAccuracy()
+        print("Test accuracy: {}.".format(test_accuracy))
+        adversarial_accuracy = analyzer.adversarialAccuracy('FGSM', budget=0.1, norm=2)
+        print("Adversarial accuracy with respect to FGSM-2: {}".format(adversarial_accuracy))
+        adversarial_accuracy = analyzer.adversarialAccuracy('FGSM', budget=0.1, norm=np.inf)
+        print("The adversarial accuracy with respect to FGSM-inf: {}".format(adversarial_accuracy))
+        adversarial_accuracy = analyzer.adversariaAccuracy('PGD', budget=0.1, norm=2)
+        print("The adversarial accuracy with respect to PGD-2: {}".format(adversarial_accuracy))
+
+        minimal_perturbations_two = analyzer.fgsmDistribution(norm=2)
+        minimal_perturbations_inf = analyzer.fgsmDistribution(norm=np.inf)
+
+        bins = 50
+        range = (0,1)
+        fig, (ax0, ax1) = plt.subplots(1, 2)
+        ax0.hist(minimal_perturbations_two, bins=bins, range=range)
+        ax0.set_xlabel("Minimal perturbation")
+        ax0.set_ylabel("Frequency")
+        ax0.set_title("FGSM-2")
+
+        ax1.hist(minimal_perturbations_inf, bins=bins, range=range)
+        ax1.set_xlabel("Minimal perturbation")
+        ax1.set_ylabel("Frequency")
+        ax1.set_title("FGSM-inf")
+
+        plt.show()
+
+    def analyzeERM(self):
+        print("The analysis result of the MNIST classifier with the relu activation function is as follows.")
+        self.analysisResult(self.analyzer_relu)
+
+        print("The analysis result of the MNIST classifier with the elu activation function is as follows.")
+        self.analysisResult(self.analyzer_elu)
+
 if __name__ == '__main__':
-    model = SimpleNeuralNet()
-    filepath = r"C:\Users\famth\Desktop\DRO\ERM_models\SimpleModel.pt"
-    analysis = Analysis(model, filepath)
-
-    test_accuracy = analysis.testAccuracy()
-    adversarial_accuracy = analysis.adversarialAccuracy("FGSM", 0.1, norm=np.inf)
-    print("The test accuracy is {}.".format(test_accuracy))
-    print("The adversarial accuracy for FGSM is {}.".format(adversarial_accuracy))
-
-    analysis.fgsmDistribution(norm=np.inf)
+    erm_analysis = ERMAnalysis()
+    erm_analysis.analyzeERM()   
