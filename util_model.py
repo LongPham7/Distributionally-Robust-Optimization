@@ -133,7 +133,7 @@ def evaluateModel(model):
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-    print("The accuracy of this model is {}.".format(correct/total))
+    return correct / total
 
 if __name__ == "__main__":
     epochs = 25
@@ -153,5 +153,5 @@ if __name__ == "__main__":
     model = SimpleNeuralNet()
     optimizer = optim.Adam(model.parameters())
     trainModel(model, loss_criterion, optimizer, epochs=1, filepath=".\\models\\SimpleModel.pt")
-    evaluateModel(model)
+    print("The test accuracy is {}".format(evaluateModel(model))
     """

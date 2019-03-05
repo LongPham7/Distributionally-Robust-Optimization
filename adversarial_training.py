@@ -108,11 +108,8 @@ class ProjectedGradientTraining(AdversarialTraining):
         """
 
         super().__init__(model, loss_criterion)
-        assert q == 1 or q == 2 or q == float('inf')
-        if q == float('inf'):
-            self.q = np.inf
-        else:
-            self.q = q
+        assert q == 1 or q == 2 or q == np.inf
+        self.q = q
         self.pgd = PGD(model, loss_criterion, norm=self.q, max_iter=15)
         self.fgsm = FGSM(model, loss_criterion, norm=self.q)
 

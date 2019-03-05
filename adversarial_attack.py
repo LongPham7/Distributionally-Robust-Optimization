@@ -50,6 +50,8 @@ class PGD:
     after each iteration. However, random restrating is not used in this
     implementation. Not using radom restarting is the difference between the
     PGD implemented in ART and the one described by Madry et al. 
+
+    This adversarial attack subsumes the iterative FGSM. 
     """
 
     def __init__(self, model, loss_criterion, norm=np.inf, max_iter=15, batch_size=128):
@@ -61,7 +63,7 @@ class PGD:
         # Use GPU for computation if it is available
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    def generatePerturbation(self, data, budget, max_iter=20):
+    def generatePerturbation(self, data, budget, max_iter=15):
         images, _ = data
         
         # eps_step is not allowed to be larger than budget according to the 
@@ -82,7 +84,7 @@ if __name__ == "__main__":
     model.to(device) # Load the neural network on GPU if it is available
     print("The neural network is now loaded on {}.".format(device))
 
-    # Create an object for FGSM
+    # Create an object for PGD
     criterion = nn.CrossEntropyLoss()
     batch_size = 128
     pgd = PGD(model, criterion, batch_size=batch_size)
@@ -91,7 +93,7 @@ if __name__ == "__main__":
     # Read MNIST dataset
     test_loader = retrieveMNISTTestData(batch_size=1024)
 
-    # Craft adversarial examples with FGSM
+    # Craft adversarial examples with PGD
     epsilon = 0.1  # Maximum perturbation
     total, correct = 0, 0
     for i, data in enumerate(test_loader):

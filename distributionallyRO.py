@@ -2,6 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 from util_MNIST import randomStart
 from adversarial_training import AdversarialTraining
 
@@ -163,8 +164,7 @@ class FrankWolfeDRO(AdversarialTraining):
         directions = data.clone().detach().view((batch_size, -1))
         directions = directions.to(self.device)
 
-        if self.q == float('inf'):
-            normalize_dim = float('inf')
+        if self.q == np.inf:
             directions = directions.sign()
         elif self.q > 1:
             normalize_dim = 1 / (self.q - 1)
@@ -184,8 +184,7 @@ class FrankWolfeDRO(AdversarialTraining):
         # This corresponds to epsilons in the original paper. 
         size_factors = products.clone().detach()
         size_factors = size_factors.to(self.device)
-        if self.p == float('inf'):
-            normalize_dim = float('inf')
+        if self.p == np.inf:
             size_factors = size_factors.sign()
         elif self.p > 1:
             normalize_dim = 1 / (self.p - 1)
