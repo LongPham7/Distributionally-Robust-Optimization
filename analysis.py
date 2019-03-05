@@ -64,11 +64,10 @@ class Analysis:
             for j in range(images.size(0)):
                 minimal_perturbations.append(torch.dist(images[j], images_adv[j], p=norm).item())
         
-        plt.hist(minimal_perturbations, bins=10, range=(0,0.5))
+        plt.hist(minimal_perturbations, bins=50, range=(0,1))
         plt.ylabel("Frequency")
         plt.ylabel("Minimal perturbation")
         plt.show()
-        print("Some of the values of the minimal perturbations are \n{}".format(minimal_perturbations[:10]))
 
 if __name__ == '__main__':
     model = SimpleNeuralNet()

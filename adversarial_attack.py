@@ -37,7 +37,7 @@ class FGSM:
         """
 
         images, _ = data
-        images_adv = self.attack.generate(x=images.numpy(), norm=self.norm, eps=budget, minimal=minimal, eps_steps=0.005, eps_max=1.0, batch_size=self.batch_size)
+        images_adv = self.attack.generate(x=images.numpy(), norm=self.norm, eps=budget, minimal=minimal, eps_step=0.005, eps_max=1.0, batch_size=self.batch_size)
         images_adv = torch.from_numpy(images_adv)
 
         # The output to be returned should be loaded on an appropriate device. 
