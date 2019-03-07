@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch import optim, nn
+import torch.nn.functional as F
 from util_MNIST import retrieveMNISTTestData
 from util_model import SimpleNeuralNet, loadModel, wrapModel
 
@@ -9,6 +10,11 @@ from art.attacks import FastGradientMethod, ProjectedGradientDescent
 img_rows, img_cols = 28, 28
 
 class FGSM:
+    """
+    Class for the fast gradient sign method (FGSM).
+    This class delegates the implementation of the attack to the ART library
+    developed by IBM. 
+    """
 
     def __init__(self, model, loss_criterion, norm=np.inf, batch_size=128):
         self.pytorch_model = wrapModel(model, loss_criterion)
@@ -37,11 +43,68 @@ class FGSM:
         """
 
         images, _ = data
-        images_adv = self.attack.generate(x=images.numpy(), norm=self.norm, eps=budget, minimal=minimal, eps_step=0.005, eps_max=1.0, batch_size=self.batch_size)
+        images_adv = self.attack.generate(x=images.cpu().numpy(), norm=self.norm, eps=budget, minimal=minimal, eps_step=0.005, eps_max=1.0, batch_size=self.batch_size)
         images_adv = torch.from_numpy(images_adv)
 
         # The output to be returned should be loaded on an appropriate device. 
         return images_adv.to(self.device)
+
+class FGSMNative:
+    """
+    Class for manually implemented FGSM, unlike the above FGSM class in this
+    module. For some unknown reason, this class produces a different
+    performance in adversarial attacks than the FGSM class. The performance of
+    FGSMNative is better than that of FGSM only in some cases. 
+    """
+
+    def __init__(self, model, loss_criterion, norm=np.inf, batch_size=128):
+        self.model = model
+        self.loss_criterion = loss_criterion
+        self.norm = norm
+        self.batch_size = batch_size
+        
+        # Use GPU for computation if it is available
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    def generatePerturbation(self, data, budget):
+        """
+        Generate adversarial examples from a given batch of images. 
+        The input data should have already been loaded on an appropriate
+        device. 
+
+        Note that unlike the FGSM class, in this FGSMNative class, the
+        computation of minimal perturbations is not supported. 
+
+        Arguments:
+            data: pairs of a batch of images and a batch of labels. The batch
+                of images should be a numpy array. The batch of labels should
+                be a numpy array of integers. 
+            budget: the maximal size of perturbation allowed. This parameter
+                is not used if minimal = True. 
+            minimal: whether the minimal adversarial perturbation is computed.
+                If yes, the maximal size of perturbation is 1.0. Consequently,
+                the budget parameter is overridden. 
+        """
+
+        images, labels = data
+        images.requires_grad_(True)
+        output = self.model(images)
+        loss = self.loss_criterion(output, labels)
+        loss.backward()
+
+        images_adv = images.clone().detach().to(self.device)
+        if self.norm == np.inf:
+            direction = images.grad.data.sign()
+        elif self.norm == 2:
+            flattened_images = images_adv.view(-1, img_rows * img_cols)
+            direction = F.normalize(flattened_images, p=2, dim=1).view(images.size())
+        else:
+            raise ValueError("The norm is not valid.")
+        images_adv.add_(budget * direction)
+        images_adv.clamp_(0,1)
+
+        # The output to be returned should be loaded on an appropriate device. 
+        return images_adv
 
 class PGD:
     """
@@ -54,11 +117,11 @@ class PGD:
     This adversarial attack subsumes the iterative FGSM. 
     """
 
-    def __init__(self, model, loss_criterion, norm=np.inf, max_iter=15, batch_size=128):
+    def __init__(self, model, loss_criterion, norm=np.inf, batch_size=128):
         self.pytorch_model = wrapModel(model, loss_criterion)
         self.norm = norm
         self.batch_size = batch_size
-        self.attack = ProjectedGradientDescent(self.pytorch_model, norm=norm, max_iter=max_iter, batch_size=batch_size)
+        self.attack = ProjectedGradientDescent(self.pytorch_model, norm=norm, batch_size=batch_size)
 
         # Use GPU for computation if it is available
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -68,8 +131,8 @@ class PGD:
         
         # eps_step is not allowed to be larger than budget according to the 
         # documentation of ART. 
-        eps_step = budget / 8
-        images_adv = self.attack.generate(x=images.numpy(), norm=self.norm, eps=budget, eps_step=eps_step, max_iter=max_iter, batch_size=self.batch_size)
+        eps_step = budget / 5
+        images_adv = self.attack.generate(x=images.cpu().numpy(), norm=self.norm, eps=budget, eps_step=eps_step, max_iter=max_iter, batch_size=self.batch_size)
         images_adv = torch.from_numpy(images_adv)
 
         # The output to be returned should be loaded on an appropriate device. 
@@ -108,5 +171,5 @@ if __name__ == "__main__":
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
         acc = (predicted == labels).sum().item() / labels.size(0)
-        print("{}-th iteration: the test accuracy on adversarial sample: {}%".format(i+1, acc * 100))
-    print("The overall accuracy on adversarial exampels is {}%.".format(correct / total * 100))
+        print("Iteration: {}; test accuracy on adversarial sample: {}".format(i+1, acc))
+    print("Overall accuracy on adversarial exampels: {}.".format(correct / total))
