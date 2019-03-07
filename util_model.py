@@ -22,7 +22,7 @@ class SimpleNeuralNet(nn.Module):
         output = F.relu(self.conv1(x))
         output = output.view(-1, self.num_flat_features(output))
         output = self.fc1(output)
-        return F.softmax(output, dim=1)
+        return output
 
     def num_flat_features(self, x):
         size = x.size()[1:]
@@ -39,12 +39,22 @@ class MNISTClassifier(nn.Module):
     """
 
     def __init__(self, nb_filters=64, activation='relu'):
+        """
+        The parameters in convolutional layers and a fully connected layer are
+        initialized using the Glorot/Xavier initialization, which is the
+        default initialization method in Keras.
+        """
+
         super().__init__()
         self.activation = activation
         self.conv1 = nn.Conv2d(1, nb_filters, kernel_size=(8, 8), stride=(2, 2), padding=(3, 3))
+        nn.init.xavier_uniform_(self.conv1.weight)
         self.conv2 = nn.Conv2d(nb_filters, nb_filters * 2, kernel_size=(6, 6), stride=(2, 2))
+        nn.init.xavier_uniform_(self.conv2.weight)
         self.conv3 = nn.Conv2d(nb_filters * 2, nb_filters * 2, kernel_size=(5, 5), stride=(1, 1))
+        nn.init.xavier_uniform_(self.conv3.weight)
         self.fc1 = nn.Linear(nb_filters * 2, 10)
+        nn.init.xavier_uniform_(self.fc1.weight)
 
     def forward(self, x):
         outputs = self.conv1(x)
@@ -55,7 +65,10 @@ class MNISTClassifier(nn.Module):
         outputs = self.applyActivation(outputs)
         outputs = outputs.view((-1, self.num_flat_features(outputs)))
         outputs = self.fc1(outputs)
-        return F.softmax(outputs, dim=1)
+        # Note that because we use CrosEntropyLoss, which combines
+        # nn.LogSoftmax and nn.NLLoss, we do not need a softmax layer as the
+        # last layer. 
+        return outputs
 
     def applyActivation(self, x):
         if self.activation == 'relu':
@@ -118,42 +131,45 @@ def loadModel(model, filepath):
         filepath: path to the .pt file that stores the parameters to be loaded
     """
 
-    # Use GPU for computation if it is available
+    # Load the model on GPU if it is available.
+    # Otherwise, use CPU. 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.load_state_dict(torch.load(filepath, map_location=device))
     "The model is now loaded."
     return model
 
 def evaluateModel(model):
+    # Use GPU for computation if it is available
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
     test_loader = retrieveMNISTTestData()
     correct = 0
     total = 0
     with torch.no_grad():
         for data in test_loader:
             images, labels = data
+            images, labels = images.to(device), labels.to(device)
             outputs = model(images)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-    return correct / total
+    return correct, total
 
 if __name__ == "__main__":
     epochs = 25
+    # Note that nn.CrosEntropyLoss combines nn.LogSoftmax and nn.NLLoss. 
     loss_criterion = nn.CrossEntropyLoss()
+    learning_rate = 0.001
 
     model_elu = MNISTClassifier(activation='elu')
-    optimizer_elu = optim.Adam(model_elu.parameters())
+    optimizer_elu = optim.Adam(model_elu.parameters(), lr=learning_rate)
 
     model_relu = MNISTClassifier(activation='relu')
-    optimizer_relu = optim.Adam(model_relu.parameters())
+    optimizer_relu = optim.Adam(model_relu.parameters(), lr=learning_rate)
 
     # The file paths are only valid in UNIX systems. 
-    trainModel(model_elu, loss_criterion, optimizer_elu, epochs=epochs, filepath='./models/MNISTClassifier_elu.pt')
-    trainModel(model_relu, loss_criterion, optimizer_relu, epochs=epochs, filepath='./models/MNISTClassifier_relu.pt')
+    filepath_relu = './experiment_models/MNISTClassifier_relu.pt'
+    filepath_elu = './experiment_models/MNISTClassifier_elu.pt'
 
-    """
-    model = SimpleNeuralNet()
-    optimizer = optim.Adam(model.parameters())
-    trainModel(model, loss_criterion, optimizer, epochs=1, filepath=".\\models\\SimpleModel.pt")
-    print("The test accuracy is {}".format(evaluateModel(model))
-    """
+    trainModel(model_elu, loss_criterion, optimizer_relu, epochs=epochs, filepath=filepath_relu)
+    trainModel(model_relu, loss_criterion, optimizer_elu, epochs=epochs, filepath=filepath_elu)
