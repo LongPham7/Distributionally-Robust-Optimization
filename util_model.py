@@ -115,7 +115,7 @@ def trainModel(model, loss_criterion, optimizer, epochs=25, filepath=None):
             running_loss += loss.item()
             optimizer.step()
             if i%20 == 19: 
-                print("Epoch: {}, iteration: {}, loss: {}".format(epoch, i, running_loss / 100))
+                print("Epoch: {}, iteration: {}, loss: {}".format(epoch, i, running_loss / 20))
                 running_loss = 0.0
     print("Training is complete.")
     if filepath is not None:
@@ -150,7 +150,8 @@ def evaluateModel(model):
             images, labels = data
             images, labels = images.to(device), labels.to(device)
             outputs = model(images)
-            _, predicted = torch.max(outputs.data, 1)
+            softmax = nn.Softmax()
+            _, predicted = torch.max(softmax(outputs, dim=1).data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     return correct, total
@@ -165,7 +166,7 @@ def evaluateModelSingleInput(model, image):
     return prediction.item()
 
 if __name__ == "__main__":
-    epochs = 25
+    epochs = 3
     # Note that nn.CrosEntropyLoss combines nn.LogSoftmax and nn.NLLoss. 
     loss_criterion = nn.CrossEntropyLoss()
     learning_rate = 0.001
@@ -183,4 +184,4 @@ if __name__ == "__main__":
     filepath_elu = './experiment_models/MNISTClassifier_elu.pt'
 
     trainModel(model_elu, loss_criterion, optimizer_relu, epochs=epochs, filepath=filepath_relu)
-    trainModel(model_relu, loss_criterion, optimizer_elu, epochs=epochs, filepath=filepath_elu)
+    #trainModel(model_relu, loss_criterion, optimizer_elu, epochs=epochs, filepath=filepath_elu)
