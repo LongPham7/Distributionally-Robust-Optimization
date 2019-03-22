@@ -142,7 +142,7 @@ def evaluateModel(model):
     # Use GPU for computation if it is available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    test_loader = retrieveMNISTTestData()
+    test_loader = retrieveMNISTTestData(batch_size=128)
     correct = 0
     total = 0
     with torch.no_grad():
@@ -154,6 +154,15 @@ def evaluateModel(model):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     return correct, total
+
+def evaluateModelSingleInput(model, image):
+    # Use GPU for computation if it is available
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    input = image.view((1, 1, img_rows, img_cols)).to(device)
+    otuput = model(input)
+    _, prediction = torch.max(otuput.data, 1)
+    return prediction.item()
 
 if __name__ == "__main__":
     epochs = 25

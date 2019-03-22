@@ -16,7 +16,7 @@ class FGSM:
     developed by IBM. 
     """
 
-    def __init__(self, model, loss_criterion, norm=np.inf, batch_size=128):
+    def __init__(self, model, loss_criterion, norm, batch_size=128):
         self.pytorch_model = wrapModel(model, loss_criterion)
         self.norm = norm
         self.batch_size = batch_size
@@ -43,7 +43,7 @@ class FGSM:
         """
 
         images, _ = data
-        images_adv = self.attack.generate(x=images.cpu().numpy(), norm=self.norm, eps=budget, minimal=minimal, eps_step=0.005, eps_max=1.0, batch_size=self.batch_size)
+        images_adv = self.attack.generate(x=images.cpu().numpy(), norm=self.norm, eps=budget, minimal=minimal, eps_step=0.02, eps_max=1.0, batch_size=self.batch_size)
         images_adv = torch.from_numpy(images_adv)
 
         # The output to be returned should be loaded on an appropriate device. 
@@ -66,7 +66,7 @@ class FGSMNative:
         # Use GPU for computation if it is available
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    def generatePerturbation(self, data, budget):
+    def generatePerturbation(self, data, budget, minimal=False):
         """
         Generate adversarial examples from a given batch of images. 
         The input data should have already been loaded on an appropriate
@@ -87,12 +87,16 @@ class FGSMNative:
         """
 
         images, labels = data
+        images_adv = images.clone().detach().to(self.device)
+        # We will never need to compute a gradient with respect to images_adv. 
+        images_adv.requires_grad_(False)
+
         images.requires_grad_(True)
         output = self.model(images)
         loss = self.loss_criterion(output, labels)
         loss.backward()
+        images.requires_grad_(False)
 
-        images_adv = images.clone().detach().to(self.device)
         if self.norm == np.inf:
             direction = images.grad.data.sign()
         elif self.norm == 2:
@@ -100,7 +104,23 @@ class FGSMNative:
             direction = F.normalize(flattened_images, p=2, dim=1).view(images.size())
         else:
             raise ValueError("The norm is not valid.")
-        images_adv.add_(budget * direction)
+        
+        if minimal:
+            iterations = 50
+            incremental_size = budget / iterations
+            minimal_perturbations = torch.zeros(images.size())
+            for i in range(iterations):
+                outputs = self.model((images_adv + minimal_perturbations).clamp(0, 1))
+                _, predicted = torch.max(outputs.data, 1)
+                for j in range(labels.size()[0]):
+                    # If the current adversarial exampels are correctly
+                    # classified, increase the size of the perturbations. 
+                    if predicted[j] == labels[j]:
+                        minimal_perturbations[j].add_(incremental_size * direction[j])
+            images_adv.add_(minimal_perturbations)
+        else:
+            images_adv.add_(budget * direction)
+        
         images_adv.clamp_(0,1)
 
         # The output to be returned should be loaded on an appropriate device. 
@@ -141,7 +161,7 @@ class PGD:
 if __name__ == "__main__":
     # Load a simple neural network
     model = SimpleNeuralNet()
-    loadModel(model, "C:\\Users\\famth\\Desktop\\DRO\\models\\SimpleModel.pt")
+    loadModel(model, "./ERM_models/SimpleModel.pt")
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device) # Load the neural network on GPU if it is available
