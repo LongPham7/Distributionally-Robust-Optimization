@@ -62,8 +62,8 @@ class Analysis:
             else:
                 images_adv = adversarial_module.generatePerturbation(data, budget, max_iter=max_iter)
             with torch.no_grad():
-                softmax = nn.Softmax()
-                outputs =  softmax(self.model(images_adv), dim=1)
+                softmax = nn.Softmax(dim=1)
+                outputs =  softmax(self.model(images_adv))
             
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)

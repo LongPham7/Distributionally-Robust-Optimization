@@ -150,8 +150,8 @@ def evaluateModel(model):
             images, labels = data
             images, labels = images.to(device), labels.to(device)
             outputs = model(images)
-            softmax = nn.Softmax()
-            _, predicted = torch.max(softmax(outputs, dim=1).data, 1)
+            softmax = nn.Softmax(dim=1)
+            _, predicted = torch.max(softmax(outputs).data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     return correct, total
