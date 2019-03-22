@@ -102,7 +102,7 @@ def trainModel(model, loss_criterion, optimizer, epochs=25, filepath=None):
     print("The neural network is now loaded on {}.".format(device))
 
     running_loss = 0.0
-    train_loader = retrieveMNISTTrainingData(batch_size=128)
+    train_loader = retrieveMNISTTrainingData()
     for epoch in range(epochs):
         for i, data in enumerate(train_loader, 0):
             inputs, labels = data
@@ -166,7 +166,7 @@ def evaluateModelSingleInput(model, image):
     return prediction.item()
 
 if __name__ == "__main__":
-    epochs = 3
+    epochs = 25
     # Note that nn.CrosEntropyLoss combines nn.LogSoftmax and nn.NLLoss. 
     loss_criterion = nn.CrossEntropyLoss()
     learning_rate = 0.001
@@ -183,5 +183,5 @@ if __name__ == "__main__":
     filepath_relu = './experiment_models/MNISTClassifier_relu.pt'
     filepath_elu = './experiment_models/MNISTClassifier_elu.pt'
 
-    trainModel(model_elu, loss_criterion, optimizer_relu, epochs=epochs, filepath=filepath_relu)
-    #trainModel(model_relu, loss_criterion, optimizer_elu, epochs=epochs, filepath=filepath_elu)
+    trainModel(model_relu, loss_criterion, optimizer_relu, epochs=epochs, filepath=filepath_relu)
+    trainModel(model_elu, loss_criterion, optimizer_elu, epochs=epochs, filepath=filepath_elu)
