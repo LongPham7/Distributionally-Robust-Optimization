@@ -43,7 +43,7 @@ class FGSM:
         """
 
         images, _ = data
-        images_adv = self.attack.generate(x=images.cpu().numpy(), norm=self.norm, eps=budget, minimal=minimal, eps_step=0.02, eps_max=1.0, batch_size=self.batch_size)
+        images_adv = self.attack.generate(x=images.cpu().numpy(), norm=self.norm, eps=budget, minimal=minimal, eps_step=budget / 50, eps_max=budget, batch_size=self.batch_size)
         images_adv = torch.from_numpy(images_adv)
 
         # The output to be returned should be loaded on an appropriate device. 
@@ -141,7 +141,7 @@ class PGD:
         self.pytorch_model = wrapModel(model, loss_criterion)
         self.norm = norm
         self.batch_size = batch_size
-        self.attack = ProjectedGradientDescent(self.pytorch_model, norm=norm, batch_size=batch_size)
+        self.attack = ProjectedGradientDescent(self.pytorch_model, norm=norm, random_init=False, batch_size=batch_size)
 
         # Use GPU for computation if it is available
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

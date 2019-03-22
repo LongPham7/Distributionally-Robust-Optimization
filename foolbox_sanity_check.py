@@ -58,8 +58,8 @@ if __name__ == "__main__":
     model_relu = loadModel(model_relu, filepath_relu)
     model_elu = loadModel(model_relu, filepath_elu)
 
-    # Display the structure of the neural network
-    #summary(model_relu.cuda(), (1, 28, 28))
+    # Display the architecture of the neural network
+    summary(model_relu.cuda(), (1, 28, 28))
 
     print("The result of relu is as follows.")
     adversarialAccuracy(model_relu)

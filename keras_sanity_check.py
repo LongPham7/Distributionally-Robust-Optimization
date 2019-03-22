@@ -98,11 +98,18 @@ def adversarialAccuracy(model):
     print("Adversarial error rate: {} / {} = {}".format(wrong, total, wrong / total))
 
 if __name__ == "__main__":
+    # Train Keras neural networks
+    """
+    trainModel(activation='relu')
+    trainModel(activation='elu')
+    """
+
     filepath_relu = './experiment_models/KerasMNISTClassifier_relu.h5'
     filepath_elu = './experiment_models/KerasMNISTClassifier_elu.h5'
     model_relu = load_model(filepath_relu)
     model_elu = load_model(filepath_elu)
 
+    # Display the architecture of the neural network
     model_relu.summary()
 
     adversarialAccuracy(model_relu)

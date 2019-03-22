@@ -136,6 +136,7 @@ class FrankWolfeDRO(AdversarialTraining):
             destination = destination.to(self.device)
             gamma = 2 / (i + 2)
             images_adv.data = (1 - gamma) * images_adv.data + gamma * destination
+            images_adv.data.clamp_(0, 1)
         return images_adv, labels
 
     def getOptimalDirection(self, budget, data):

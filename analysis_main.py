@@ -38,8 +38,8 @@ class Analysis:
         test_loader = retrieveMNISTTestData(batch_size=batch_size)
         criterion = nn.CrossEntropyLoss()
         if adversarial_type == "FGSM":
-            #adversarial_module = FGSM(self.model, criterion, norm=norm, batch_size=batch_size)
-            adversarial_module = FGSMNative(self.model, criterion, norm=norm, batch_size=batch_size)
+            adversarial_module = FGSM(self.model, criterion, norm=norm, batch_size=batch_size)
+            #adversarial_module = FGSMNative(self.model, criterion, norm=norm, batch_size=batch_size)
         elif adversarial_type == 'PGD':
             adversarial_module = PGD(self.model, criterion, norm=norm, batch_size=batch_size)
         else:
@@ -47,7 +47,7 @@ class Analysis:
 
         # Craft adversarial examples
         total, correct = 0, 0
-        period = 2
+        period = 100
         for i, data in enumerate(test_loader):
             if i == period:
                 break
@@ -73,13 +73,12 @@ class Analysis:
         batch_size = 128
         test_loader = retrieveMNISTTestData(batch_size=batch_size)
         criterion = nn.CrossEntropyLoss()
-        #fgsm = FGSM(self.model, criterion, norm=norm, batch_size=batch_size)
-        fgsm = FGSMNative(self.model, criterion, norm=norm, batch_size=batch_size)
+        fgsm = FGSM(self.model, criterion, norm=norm, batch_size=batch_size)
+        #fgsm = FGSMNative(self.model, criterion, norm=norm, batch_size=batch_size)
 
         # Craft "minimal" adversarial examples with FGSM
         minimal_perturbations = [] # List of minimal perturbations
-        period = 2
-        correct = 0
+        period = 100
         for i, data in enumerate(test_loader):
             if i == period:
                 break
@@ -109,8 +108,8 @@ class ERMAnalysis:
         model_elu = MNISTClassifier(activation='elu')
         
         # These file paths only work on UNIX. 
-        filepath_relu = "./ERM_models/MNISTClassifier_relu.pt"
-        filepath_elu = "./ERM_models/MNISTClassifier_elu.pt"
+        filepath_relu = "./experiment_models/MNISTClassifier_relu.pt"
+        filepath_elu = "./experiment_models/MNISTClassifier_elu.pt"
         self.analyzer_relu = Analysis(model_relu, filepath_relu)
         self.analyzer_elu = Analysis(model_elu, filepath_elu)
 
@@ -118,24 +117,21 @@ class ERMAnalysis:
         budget_two = 2.0
         budget_inf = 1.0
         
-        """
         correct, total = analyzer.testAccuracy()
         print("Test accuracy: {} / {} = {}".format(correct, total, correct / total))
-        """
         
         correct, total = analyzer.adversarialAccuracy('FGSM', budget=budget_two, norm=2)
         print("Adversarial accuracy with respect to FGSM-2: {} / {} = {}".format(correct, total, correct / total))
         correct, total = analyzer.adversarialAccuracy('FGSM', budget=budget_inf, norm=np.inf)
         print("Adversarial accuracy with respect to FGSM-inf: {} / {} = {}".format(correct, total, correct / total))
         
-        """
         correct, total = analyzer.adversarialAccuracy('PGD', budget=budget_two, norm=2)
         print("Adversarial accuracy with respect to PGD-2: {} / {} = {}".format(correct, total, correct / total))
         correct, total = analyzer.adversarialAccuracy('PGD', budget=budget_inf, norm=np.inf)
         print("Adversarial accuracy with respect to PGD-inf: {} / {} = {}".format(correct, total, correct / total))
-        """
 
-        #TODO: It is neecessary to prune out those adversarial examples that are corectly classified. 
+        """
+        #TODO: It may be neecessary to prune out those adversarial examples that are corectly classified. 
         minimal_perturbations_two = analyzer.fgsmPerturbationDistribution(budget=budget_two, norm=2)
         minimal_perturbations_inf = analyzer.fgsmPerturbationDistribution(budget=budget_inf, norm=np.inf)
 
@@ -153,9 +149,9 @@ class ERMAnalysis:
         ax1.set_title("FGSM-inf")
         print("Distribution in FGSM-inf: {}".format(n))
 
-        plt.show()
-
-        """
+        plt.tight_layout()
+        
+        #plt.show()
         filepath = "./images/" + filename
         plt.savefig(filepath)
         print("A histogram is now saved at {}.".format(filepath))
@@ -166,10 +162,8 @@ class ERMAnalysis:
         print("The analysis result of the MNIST classifier with the relu activation function is as follows.")
         self.analysisResult(self.analyzer_relu, "MNISTClassifier_relu.png")
 
-        """
         print("The analysis result of the MNIST classifier with the elu activation function is as follows.")
         self.analysisResult(self.analyzer_elu, "MNISTClassifier_elu.png")
-        """
 
 if __name__ == '__main__':
     erm_analysis = ERMAnalysis()

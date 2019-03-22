@@ -172,9 +172,11 @@ if __name__ == "__main__":
 
     model_elu = MNISTClassifier(activation='elu')
     optimizer_elu = optim.Adam(model_elu.parameters(), lr=learning_rate)
+    #optimizer_elu = optim.SGD(model_elu.parameters(), lr=learning_rate)
 
     model_relu = MNISTClassifier(activation='relu')
     optimizer_relu = optim.Adam(model_relu.parameters(), lr=learning_rate)
+    #optimizer_relu = optim.SGD(model_relu.parameters(), lr=learning_rate)
 
     # The file paths are only valid in UNIX systems. 
     filepath_relu = './experiment_models/MNISTClassifier_relu.pt'
