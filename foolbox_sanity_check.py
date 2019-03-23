@@ -14,7 +14,7 @@ network trained by empirical risk minimization (ERM).
 """
 
 def wrapFoolboxModel(model):
-    return PyTorchModel(model, (0, 1), num_classes=10, channel_axis=1)
+    return PyTorchModel(model, bounds=(0, 1), num_classes=10, channel_axis=1, preprocessing=(0, 1))
 
 def adversarialAccuracy(model):
     # Use GPU for computation if it is available
@@ -38,11 +38,13 @@ def adversarialAccuracy(model):
             break
         image, label = images[0].numpy(), labels[0].numpy()
 
-        attack = foolbox.attacks.FGSM(pytorch_model, criterion)
-        images_adv = attack(image, label, epsilons=epsilons, max_epsilon=max_epsilon)
+        #fgsm = foolbox.attacks.FGSM(pytorch_model, criterion)
+        #image_adv = fgsm(image, label, epsilons=epsilons, max_epsilon=max_epsilon)
+        pgd2 = foolbox.attacks.L2BasicIterativeAttack(pytorch_model, criterion)
+        image_adv = pgd2(image, label, epsilon=max_epsilon, stepsize=max_epsilon / 5, iterations=15)
 
         total += 1
-        if images_adv is not None:
+        if image_adv is not None:
             wrong += 1
         if i%period == period - 1:
             print("Cumulative adversarial attack success rate: {} / {} = {}".format(wrong, total, wrong / total))
@@ -53,13 +55,13 @@ if __name__ == "__main__":
     model_elu = MNISTClassifier(activation='elu')
     
     # These file paths only work on UNIX. 
-    filepath_relu = "./experiment_models/MNISTClassifier_relu.pt"
-    filepath_elu = "./experiment_models/MNISTClassifier_elu.pt"
+    filepath_relu = "./ERM_models/MNISTClassifier_relu.pt"
+    filepath_elu = "./ERM_models/MNISTClassifier_elu.pt"
     model_relu = loadModel(model_relu, filepath_relu)
     model_elu = loadModel(model_relu, filepath_elu)
 
     # Display the architecture of the neural network
-    summary(model_relu.cuda(), (1, 28, 28))
+    #summary(model_relu.cuda(), (1, 28, 28))
 
     print("The result of relu is as follows.")
     adversarialAccuracy(model_relu)

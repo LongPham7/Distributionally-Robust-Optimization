@@ -172,16 +172,16 @@ if __name__ == "__main__":
     learning_rate = 0.001
 
     model_elu = MNISTClassifier(activation='elu')
-    optimizer_elu = optim.Adam(model_elu.parameters(), lr=learning_rate)
-    #optimizer_elu = optim.SGD(model_elu.parameters(), lr=learning_rate)
+    #optimizer_elu = optim.Adam(model_elu.parameters(), lr=learning_rate)
+    optimizer_elu = optim.SGD(model_elu.parameters(), lr=learning_rate)
 
     model_relu = MNISTClassifier(activation='relu')
-    optimizer_relu = optim.Adam(model_relu.parameters(), lr=learning_rate)
-    #optimizer_relu = optim.SGD(model_relu.parameters(), lr=learning_rate)
+    #optimizer_relu = optim.Adam(model_relu.parameters(), lr=learning_rate)
+    optimizer_relu = optim.SGD(model_relu.parameters(), lr=learning_rate)
 
     # The file paths are only valid in UNIX systems. 
-    filepath_relu = './experiment_models/MNISTClassifier_relu.pt'
     filepath_elu = './experiment_models/MNISTClassifier_elu.pt'
+    filepath_relu = './experiment_models/MNISTClassifier_relu.pt'
 
-    trainModel(model_relu, loss_criterion, optimizer_relu, epochs=epochs, filepath=filepath_relu)
     trainModel(model_elu, loss_criterion, optimizer_elu, epochs=epochs, filepath=filepath_elu)
+    trainModel(model_relu, loss_criterion, optimizer_relu, epochs=epochs, filepath=filepath_relu)

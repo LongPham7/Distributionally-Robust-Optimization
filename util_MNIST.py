@@ -72,7 +72,7 @@ def displayImage(image, label):
 
     image = image.view((img_rows, img_cols))
     plt.imshow(image, vmin=0.0, vmax=1.0, cmap='gray')
-    plt.title("Preidcted label is {}".format(label))
+    plt.title("Predicted label: {}".format(label))
     plt.show()
 
 if __name__ == "__main__":

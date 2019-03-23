@@ -109,13 +109,13 @@ class ERMAnalysis:
         model_elu = MNISTClassifier(activation='elu')
         
         # These file paths only work on UNIX. 
-        filepath_relu = "./experiment_models/MNISTClassifier_relu.pt"
-        filepath_elu = "./experiment_models/MNISTClassifier_elu.pt"
+        filepath_relu = "./ERM_models/MNISTClassifier_relu.pt"
+        filepath_elu = "./ERM_models/MNISTClassifier_elu.pt"
         self.analyzer_relu = Analysis(model_relu, filepath_relu)
         self.analyzer_elu = Analysis(model_elu, filepath_elu)
 
     def analysisResult(self, analyzer, filename):
-        budget_two = 2.0
+        budget_two = 3.0
         budget_inf = 1.0
         
         correct, total = analyzer.testAccuracy()

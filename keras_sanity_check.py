@@ -1,4 +1,6 @@
 import numpy as np
+from numpy import linalg as LA
+import matplotlib.pyplot as plt
 
 from keras.utils import to_categorical
 from keras.datasets import mnist
@@ -83,19 +85,33 @@ def adversarialAccuracy(model):
     keras_model = KerasModel(model, bounds=(0,1), channel_axis=channel_axis)
     criterion = Misclassification()
 
-    wrong, total = 0, x_test.shape[0]
-    period = 500
-    for i in range(total):
+    length = x_test.shape[0]
+    wrong = 0
+    period = 50
+    for i in range(length):
         image, label = x_test[i], y_test_original[i]
 
-        attack = foolbox.attacks.FGSM(keras_model, criterion)
-        image_adv = attack(image, label, epsilons=5, max_epsilon=1.0)
+        #attack = foolbox.attacks.FGSM(keras_model, criterion)
+        #image_adv = attack(image, label, epsilons=5, max_epsilon=1.0)
+        pgd2 = foolbox.attacks.L2BasicIterativeAttack(keras_model, criterion)
+        image_adv = pgd2(image, label, epsilon=1.0, stepsize=1.0, iterations=1, binary_search=False)
+
         if image_adv is not None:
+            prediction = np.argmax(keras_model.predictions_and_gradient(image_adv, label)[0])
+            assert prediction != label
             wrong += 1
         if i%period == period - 1:
             print("Adversarial attack success rate: {} / {} = {}".format(wrong, i+1, wrong / (i+1)))
+            if image_adv is not None:
+                displayImage(image_adv, label)
+                print("Size of perturbation: {}".format(LA.norm(image_adv - image, None)))
 
-    print("Adversarial error rate: {} / {} = {}".format(wrong, total, wrong / total))
+    print("Adversarial error rate: {} / {} = {}".format(wrong, length, wrong / length))
+
+def displayImage(image, label):
+    plt.imshow(image.reshape((img_rows, img_cols)), vmin=0.0, vmax=1.0, cmap='gray')
+    plt.title("Predicted label is {}".format(label))
+    plt.show()
 
 if __name__ == "__main__":
     # Train Keras neural networks
@@ -110,7 +126,13 @@ if __name__ == "__main__":
     model_elu = load_model(filepath_elu)
 
     # Display the architecture of the neural network
-    model_relu.summary()
+    #model_relu.summary()
 
+    loss_and_metrics = model_relu.evaluate(x_test, y_test, batch_size=128)
+    print("Test accuracy of relu: {}".format(loss_and_metrics))
+    loss_and_metrics = model_elu.evaluate(x_test, y_test, batch_size=128)
+    print("Test accuracy of elu: {}".format(loss_and_metrics))
+
+    # For some unknown reason, this raises an assertion error at the 400-th image. 
     adversarialAccuracy(model_relu)
     adversarialAccuracy(model_elu)
