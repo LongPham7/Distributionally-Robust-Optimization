@@ -107,17 +107,21 @@ class ERMAnalysis:
     def __init__(self):
         model_relu = MNISTClassifier(activation='relu')
         model_elu = MNISTClassifier(activation='elu')
+        model_sgd_relu = MNISTClassifier(activation='relu')
+        model_sgd_elu = MNISTClassifier(activation='elu')
         
         # These file paths only work on UNIX. 
         filepath_relu = "./ERM_models/MNISTClassifier_relu.pt"
         filepath_elu = "./ERM_models/MNISTClassifier_elu.pt"
+        filepath_sgd_relu = "./ERM_models/MNISTClassifier_SGD_relu.pt"
+        filepath_sgd_elu = "./ERM_models/MNISTClassifier_SGD_elu.pt"
+        
         self.analyzer_relu = Analysis(model_relu, filepath_relu)
         self.analyzer_elu = Analysis(model_elu, filepath_elu)
+        self.analyzer_sgd_relu = Analysis(model_sgd_relu, filepath_sgd_relu)
+        self.analyzer_sgd_elu = Analysis(model_sgd_elu, filepath_sgd_elu)
 
-    def analysisResult(self, analyzer, filename):
-        budget_two = 3.0
-        budget_inf = 1.0
-        
+    def printBasicResult(self, analyzer, budget_two, budget_inf):     
         correct, total = analyzer.testAccuracy()
         print("Test accuracy: {} / {} = {}".format(correct, total, correct / total))
         
@@ -131,7 +135,10 @@ class ERMAnalysis:
         correct, total = analyzer.adversarialAccuracy('PGD', budget=budget_inf, norm=np.inf)
         print("Adversarial accuracy with respect to PGD-inf: {} / {} = {}".format(correct, total, correct / total))
 
-        """
+    def producePerturbationHistorgram(self, analyzer, filename):
+        budget_two = 3.0
+        budget_inf = 1.0
+
         #TODO: It may be neecessary to prune out those adversarial examples that are corectly classified. 
         minimal_perturbations_two = analyzer.fgsmPerturbationDistribution(budget=budget_two, norm=2)
         minimal_perturbations_inf = analyzer.fgsmPerturbationDistribution(budget=budget_inf, norm=np.inf)
@@ -157,15 +164,62 @@ class ERMAnalysis:
         plt.savefig(filepath)
         print("A histogram is now saved at {}.".format(filepath))
         plt.close()
-        """
 
-    def analyzeERM(self):
-        print("The analysis result of the MNIST classifier with the relu activation function is as follows.")
-        self.analysisResult(self.analyzer_relu, "MNISTClassifier_relu.png")
+    def plotPerturbationLineGraph(self, ax, adversarial_type, budget, norm, bins):
+        analyzers = [self.analyzer_relu, self.analyzer_elu, self.analyzer_sgd_relu, self.analyzer_sgd_elu]
+        results = [[], [], [], []]
+        increment_size = budget / bins
+        perturbations = [i * increment_size for i in range(bins+1)]
+        labels = ['ReLU Adam', 'ELU Adam', 'ReLU SGD', 'ELU SGD']
+        colours = ['blue', 'green', 'red', 'cyan']
 
-        print("The analysis result of the MNIST classifier with the elu activation function is as follows.")
-        self.analysisResult(self.analyzer_elu, "MNISTClassifier_elu.png")
+        # Evaluate the test accuracy; i.e. robustness against adverarial
+        # attacks with the budget of 0. 
+        for j in range(4):
+            analyzer = analyzers[j]
+            correct, total = analyzer.testAccuracy()
+            results[j].append(1 - correct / total)
+            print("Test accuracy: {}".format(correct / total))
+
+        # Evaluate the robustness against adversarial attacks with non-zero
+        # budget. 
+        for i in range(bins):
+            for j in range(4):
+                analyzer = analyzers[j]
+                correct, total = analyzer.adversarialAccuracy(adversarial_type, increment_size * (i+1), norm)
+                results[j].append(1 - correct / total)
+            print("Adversarial attack correct prediction: {}".format(correct / total))
+
+        for i in range(4):
+            ax.plot(perturbations, results[i], color=colours[i], linestyle='-', label=labels[i])
+        ax.legend()
+        ax.set_xlabel("Perturbation size")
+        ax.set_ylabel("Adversarial attack success rate")
+        ax.set_xlim(0, budget)
+        #ax.set_ylim(0, 1) # This is only valid for the linear y-axis scale. 
+        ax.set_yscale('log')
+
+    def producePerturbationLineGraph(self, budget, norm, bins, filename):
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+
+        self.plotPerturbationLineGraph(ax1, "FGSM", budget, norm, bins)
+        self.plotPerturbationLineGraph(ax2, "PGD", budget, norm, bins)
+
+        ax1.set_title("FGSM")
+        ax2.set_title("PGD")
+
+        #plt.show()
+        filepath = "./images/" + filename
+        plt.savefig(filepath)
+        print("A graph is now saved at {}.".format(filepath))
+        plt.close()
 
 if __name__ == '__main__':
     erm_analysis = ERMAnalysis()
-    erm_analysis.analyzeERM()
+
+    budget_two = 4.0
+    budget_inf = 0.4
+    bins = 20
+    
+    erm_analysis.producePerturbationLineGraph(budget=budget_two, norm=2, bins=bins, filename='L2-norm.png')
+    erm_analysis.producePerturbationLineGraph(budget=budget_inf, norm=np.inf, bins=bins, filename='Linf-norm.png')
