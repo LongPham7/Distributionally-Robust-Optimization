@@ -188,7 +188,7 @@ class ERMAnalysis:
                 analyzer = analyzers[j]
                 correct, total = analyzer.adversarialAccuracy(adversarial_type, increment_size * (i+1), norm)
                 results[j].append(1 - correct / total)
-            print("Adversarial attack correct prediction: {}".format(correct / total))
+            print("{}-th iteration complete".format(i))
 
         for i in range(4):
             ax.plot(perturbations, results[i], color=colours[i], linestyle='-', label=labels[i])
@@ -207,12 +207,46 @@ class ERMAnalysis:
 
         ax1.set_title("FGSM")
         ax2.set_title("PGD")
+        plt.tight_layout()
+
+        width, height = fig.get_size_inches()
+        fig.set_size_inches(width * 1.8, height)
 
         #plt.show()
         filepath = "./images/" + filename
         plt.savefig(filepath)
         print("A graph is now saved at {}.".format(filepath))
         plt.close()
+
+class DROAnalysis:
+
+    def __init__(self):
+        self.Lag_relu_analyzers, self.Lag_elu_analyzers = self.initializeLagAnalyzers()
+        self.FW_relu_analyzer, self.FW_elu_analyzer = self.initializeAnalyzers(dro_type='FW')
+        self.PGD_relu_analyzer, self.PGD_elu_analyzer = self.initializeAnalyzers(dro_type='PGD')
+
+    def initializeLagAnalyzers(self):
+        Lag_relu_analyzers = []
+        Lag_elu_analyzers = []
+        gammas = [0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0]
+        for i in range(len(gammas)):
+            gamma = gammas[i]
+            filepath_relu = "./DRO_models/{}_DRO_activation={}_epsilon={}.pt".format("Lag", "relu", gamma)
+            filepath_elu = "./DRO_models/{}_DRO_activation={}_epsilon={}.pt".format("Lag", "elu", gamma)
+            model_relu = MNISTClassifier(activation='relu')
+            model_elu = MNISTClassifier(activation='elu')
+            Lag_relu_analyzers.append(Analysis(model_relu, filepath_relu))
+            Lag_elu_analyzers.append(Analysis(model_elu, filepath_elu))
+        return Lag_relu_analyzers, Lag_elu_analyzers
+
+    def initializeAnalyzers(self, dro_type):
+        filepath_relu = "./DRO_models/{}_DRO_activation={}_epsilon={}.pt".format(dro_type, "relu", 0.1)
+        filepath_elu = "./DRO_models/{}_DRO_activation={}_epsilon={}.pt".format(dro_type, "elu", 0.1)
+        model_relu = MNISTClassifier(activation='relu')
+        model_elu = MNISTClassifier(activation='elu')
+        analyzer_relu = Analysis(model_relu, filepath_relu)
+        analyzer_elu = Analysis(model_elu, filepath_elu)
+        return analyzer_relu, analyzer_elu
 
 if __name__ == '__main__':
     erm_analysis = ERMAnalysis()
