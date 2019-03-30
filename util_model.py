@@ -120,7 +120,7 @@ def trainModel(model, loss_criterion, optimizer, epochs=25, filepath=None):
     print("Training is complete.")
     if filepath is not None:
         torch.save(model.state_dict(), filepath)
-        print("The model is now saved.")
+        print("The model is now saved at {}.".foramt(filepath))
 
 def loadModel(model, filepath):
     """

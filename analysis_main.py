@@ -102,7 +102,60 @@ class Analysis:
             plt.title(title)
         plt.show()
 
-class ERMAnalysis:
+class AnalysisMulitpleModels:
+
+    def __init__(self):
+        pass
+
+    def printBasicResult(self, analyzer, budget_two, budget_inf):     
+        correct, total = analyzer.testAccuracy()
+        print("Test accuracy: {} / {} = {}".format(correct, total, correct / total))
+        
+        correct, total = analyzer.adversarialAccuracy('FGSM', budget=budget_two, norm=2)
+        print("Adversarial accuracy with respect to FGSM-2: {} / {} = {}".format(correct, total, correct / total))
+        correct, total = analyzer.adversarialAccuracy('FGSM', budget=budget_inf, norm=np.inf)
+        print("Adversarial accuracy with respect to FGSM-inf: {} / {} = {}".format(correct, total, correct / total))
+        
+        correct, total = analyzer.adversarialAccuracy('PGD', budget=budget_two, norm=2)
+        print("Adversarial accuracy with respect to PGD-2: {} / {} = {}".format(correct, total, correct / total))
+        correct, total = analyzer.adversarialAccuracy('PGD', budget=budget_inf, norm=np.inf)
+        print("Adversarial accuracy with respect to PGD-inf: {} / {} = {}".format(correct, total, correct / total))
+
+    def plotPerturbationLineGraph(self, ax, analyzers, labels, adversarial_type, budget, norm, bins):
+        length = len(analyzers)
+        results = [[] for i in range(length)]
+        increment_size = budget / bins
+        perturbations = [i * increment_size for i in range(bins+1)]
+        assert length <= 10
+        colours = ["C{}".format(i) for i in range(10)]
+
+        # Evaluate the test accuracy; i.e. robustness against adverarial
+        # attacks with the budget of 0. 
+        for j in range(length):
+            analyzer = analyzers[j]
+            correct, total = analyzer.testAccuracy()
+            results[j].append(1 - correct / total)
+            print("Test accuracy: {}".format(correct / total))
+
+        # Evaluate the robustness against adversarial attacks with non-zero
+        # budget. 
+        for i in range(bins):
+            for j in range(length):
+                analyzer = analyzers[j]
+                correct, total = analyzer.adversarialAccuracy(adversarial_type, increment_size * (i+1), norm)
+                results[j].append(1 - correct / total)
+            print("{}-th iteration complete".format(i))
+
+        for i in range(length):
+            ax.plot(perturbations, results[i], color=colours[i], linestyle='-', label=labels[i])
+        ax.legend()
+        ax.set_xlabel("Perturbation size")
+        ax.set_ylabel("Adversarial attack success rate")
+        ax.set_xlim(0, budget)
+        #ax.set_ylim(0, 1) # This is only valid for the linear y-axis scale. 
+        ax.set_yscale('log')
+
+class ERMAnalysis(AnalysisMulitpleModels):
 
     def __init__(self):
         model_relu = MNISTClassifier(activation='relu')
@@ -120,20 +173,6 @@ class ERMAnalysis:
         self.analyzer_elu = Analysis(model_elu, filepath_elu)
         self.analyzer_sgd_relu = Analysis(model_sgd_relu, filepath_sgd_relu)
         self.analyzer_sgd_elu = Analysis(model_sgd_elu, filepath_sgd_elu)
-
-    def printBasicResult(self, analyzer, budget_two, budget_inf):     
-        correct, total = analyzer.testAccuracy()
-        print("Test accuracy: {} / {} = {}".format(correct, total, correct / total))
-        
-        correct, total = analyzer.adversarialAccuracy('FGSM', budget=budget_two, norm=2)
-        print("Adversarial accuracy with respect to FGSM-2: {} / {} = {}".format(correct, total, correct / total))
-        correct, total = analyzer.adversarialAccuracy('FGSM', budget=budget_inf, norm=np.inf)
-        print("Adversarial accuracy with respect to FGSM-inf: {} / {} = {}".format(correct, total, correct / total))
-        
-        correct, total = analyzer.adversarialAccuracy('PGD', budget=budget_two, norm=2)
-        print("Adversarial accuracy with respect to PGD-2: {} / {} = {}".format(correct, total, correct / total))
-        correct, total = analyzer.adversarialAccuracy('PGD', budget=budget_inf, norm=np.inf)
-        print("Adversarial accuracy with respect to PGD-inf: {} / {} = {}".format(correct, total, correct / total))
 
     def producePerturbationHistorgram(self, analyzer, filename):
         budget_two = 3.0
@@ -165,45 +204,14 @@ class ERMAnalysis:
         print("A histogram is now saved at {}.".format(filepath))
         plt.close()
 
-    def plotPerturbationLineGraph(self, ax, adversarial_type, budget, norm, bins):
-        analyzers = [self.analyzer_relu, self.analyzer_elu, self.analyzer_sgd_relu, self.analyzer_sgd_elu]
-        results = [[], [], [], []]
-        increment_size = budget / bins
-        perturbations = [i * increment_size for i in range(bins+1)]
-        labels = ['ReLU Adam', 'ELU Adam', 'ReLU SGD', 'ELU SGD']
-        colours = ['blue', 'green', 'red', 'cyan']
-
-        # Evaluate the test accuracy; i.e. robustness against adverarial
-        # attacks with the budget of 0. 
-        for j in range(4):
-            analyzer = analyzers[j]
-            correct, total = analyzer.testAccuracy()
-            results[j].append(1 - correct / total)
-            print("Test accuracy: {}".format(correct / total))
-
-        # Evaluate the robustness against adversarial attacks with non-zero
-        # budget. 
-        for i in range(bins):
-            for j in range(4):
-                analyzer = analyzers[j]
-                correct, total = analyzer.adversarialAccuracy(adversarial_type, increment_size * (i+1), norm)
-                results[j].append(1 - correct / total)
-            print("{}-th iteration complete".format(i))
-
-        for i in range(4):
-            ax.plot(perturbations, results[i], color=colours[i], linestyle='-', label=labels[i])
-        ax.legend()
-        ax.set_xlabel("Perturbation size")
-        ax.set_ylabel("Adversarial attack success rate")
-        ax.set_xlim(0, budget)
-        #ax.set_ylim(0, 1) # This is only valid for the linear y-axis scale. 
-        ax.set_yscale('log')
-
     def producePerturbationLineGraph(self, budget, norm, bins, filename):
+        analyzers = [self.analyzer_relu, self.analyzer_elu, self.analyzer_sgd_relu, self.analyzer_sgd_elu]
+        labels = ['ReLU Adam', 'ELU Adam', 'ReLU SGD', 'ELU SGD']
+
         fig, (ax1, ax2) = plt.subplots(1, 2)
 
-        self.plotPerturbationLineGraph(ax1, "FGSM", budget, norm, bins)
-        self.plotPerturbationLineGraph(ax2, "PGD", budget, norm, bins)
+        self.plotPerturbationLineGraph(ax1, analyzers, labels, "FGSM", budget, norm, bins)
+        self.plotPerturbationLineGraph(ax2, analyzers, labels, "PGD", budget, norm, bins)
 
         ax1.set_title("FGSM")
         ax2.set_title("PGD")
@@ -218,9 +226,10 @@ class ERMAnalysis:
         print("A graph is now saved at {}.".format(filepath))
         plt.close()
 
-class DROAnalysis:
+class DROAnalysis(AnalysisMulitpleModels):
 
     def __init__(self):
+        self.gammas = [0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0]
         self.Lag_relu_analyzers, self.Lag_elu_analyzers = self.initializeLagAnalyzers()
         self.FW_relu_analyzer, self.FW_elu_analyzer = self.initializeAnalyzers(dro_type='FW')
         self.PGD_relu_analyzer, self.PGD_elu_analyzer = self.initializeAnalyzers(dro_type='PGD')
@@ -228,9 +237,9 @@ class DROAnalysis:
     def initializeLagAnalyzers(self):
         Lag_relu_analyzers = []
         Lag_elu_analyzers = []
-        gammas = [0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0]
-        for i in range(len(gammas)):
-            gamma = gammas[i]
+        length = len(self.gammas)
+        for i in range(len(length)):
+            gamma = self.gammas[i]
             filepath_relu = "./DRO_models/{}_DRO_activation={}_epsilon={}.pt".format("Lag", "relu", gamma)
             filepath_elu = "./DRO_models/{}_DRO_activation={}_epsilon={}.pt".format("Lag", "elu", gamma)
             model_relu = MNISTClassifier(activation='relu')
@@ -248,12 +257,42 @@ class DROAnalysis:
         analyzer_elu = Analysis(model_elu, filepath_elu)
         return analyzer_relu, analyzer_elu
 
+    def compareLagDROModels(self, adversarial_type, budget, norm, bins, filename):
+        labels = [r"$\gamma = {}$".format(gamma) for gamma in self.gammas]
+
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+        self.plotPerturbationLineGraph(ax1, self.Lag_relu_analyzers, labels, adversarial_type, budget, norm, bins)
+        self.plotPerturbationLineGraph(ax2, self.Lag_elu_analyzers, labels, adversarial_type, budget, norm, bins)
+        
+        ax1.set_title("ReLU")
+        ax2.set_title("ELU")
+        plt.tight_layout()
+
+        width, height = fig.get_size_inches()
+        fig.set_size_inches(width * 1.8, height)
+
+        #plt.show()
+        filepath = "./images/" + filename
+        plt.savefig(filepath)
+        print("A graph is now saved at {}.".format(filepath))
+        plt.close()
+
 if __name__ == '__main__':
-    erm_analysis = ERMAnalysis()
+    #erm_analysis = ERMAnalysis()
+    dro_analysis = DROAnalysis()
 
     budget_two = 4.0
     budget_inf = 0.4
-    bins = 20
+    bins = 2
     
+    """
     erm_analysis.producePerturbationLineGraph(budget=budget_two, norm=2, bins=bins, filename='L2-norm.png')
     erm_analysis.producePerturbationLineGraph(budget=budget_inf, norm=np.inf, bins=bins, filename='Linf-norm.png')
+    """
+
+    adversarial_type = "FGSM"
+    norm = np.inf
+    norm_type = "L2" if norm == 2 else "Linf"
+    filename = "{}_{}.png".format(adversarial_type, norm_type)
+
+    dro_analysis.compareLagDROModels(adversarial_type, budget_inf, norm, bins, filename)
