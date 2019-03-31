@@ -127,8 +127,11 @@ def loadModel(model, filepath):
     Load the set of parameters into the given model.
 
     Arguments:
-        model: a model whose paramters are to be loaded
-        filepath: path to the .pt file that stores the parameters to be loaded
+        model: a model whose paramters are to be loaded. If model is None,
+            the file should contain information about the architecture of
+            the model as well as its parameters. 
+        filepath: path to the .pt file that stores the parameters (and
+            possibly also the neural network's architecutre) to be loaded
     """
 
     # Load the model on GPU if it is available.

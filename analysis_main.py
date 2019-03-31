@@ -107,7 +107,7 @@ class Analysis:
 
     def displayHistogram(self, minimal_perturbations, title=None):
         """
-        Display a histogram of minimal perturbation size.
+        Display a histogram (for minimal perturbation size in FGSM).
         """
 
         plt.hist(minimal_perturbations, bins=50, range=(0,1))
@@ -181,14 +181,15 @@ class AnalysisMulitpleModels:
                 results[j].append(1 - correct / total)
             print("{}-th iteration complete".format(i+1))
 
-        # Record the results in a file
-        for i in range(length):
-            analyzer = analyzers[i]
-            record_file.write("Adversarial attack on {}\n".format(analyzer.filepath))
-            record_file.write("Attack type: {}; Norm: {}\n".format(adversarial_type, norm))
-            record_file.write("Budget: {}; Bins: {}\n".format(budget, bins))
-            zipped_reuslt = list(zip(perturbations, results[i]))
-            record_file.write(str(zipped_reuslt) + "\n\n")
+        # Record the results in a file if it is given
+        if record_file is not None:
+            for i in range(length):
+                analyzer = analyzers[i]
+                record_file.write("Adversarial attack on {}\n".format(analyzer.filepath))
+                record_file.write("Attack type: {}; Norm: {}\n".format(adversarial_type, norm))
+                record_file.write("Budget: {}; Bins: {}\n".format(budget, bins))
+                zipped_reuslt = list(zip(perturbations, results[i]))
+                record_file.write(str(zipped_reuslt) + "\n\n")
 
         for i in range(length):
             ax.plot(perturbations, results[i], color=cmap(i), linestyle='-', label=labels[i])
@@ -257,10 +258,10 @@ class ERMAnalysis(AnalysisMulitpleModels):
         #plt.show()
         filepath = "./images/" + filename
         plt.savefig(filepath)
-        print("A histogram is now saved at {}.".format(filepath))
+        print("Histogram now saved at {}".format(filepath))
         plt.close()
 
-    def producePerturbationLineGraph(self, budget, norm, bins, filename):
+    def plotERMModels(self, budget, norm, bins):
         """
         Produce a line graph of adversarial attack success rates for various
         budgets. 
@@ -271,7 +272,7 @@ class ERMAnalysis(AnalysisMulitpleModels):
 
         fig, (ax1, ax2) = plt.subplots(1, 2)
 
-        record_filepath = "./records/ERM_analysis.txt"
+        record_filepath = "./records/ERM_analysis_norm={}.txt".format("L2" if norm == 2 else "Linf")
         try:
             record_file = open(record_filepath, mode='w')
             self.plotPerturbationLineGraph(ax1, analyzers, labels, "FGSM", budget, norm, bins, record_file)
@@ -287,9 +288,9 @@ class ERMAnalysis(AnalysisMulitpleModels):
         fig.set_size_inches(width * 1.8, height)
 
         #plt.show()
-        filepath = "./images/" + filename
+        filepath = "./images/ERM_norm={}.png".format("L2" if norm == 2 else "Linf")
         plt.savefig(filepath)
-        print("A graph is now saved at {}.".format(filepath))
+        print("Graph now saved {}".format(filepath))
         plt.close()
 
 class DROAnalysis(AnalysisMulitpleModels):
@@ -326,7 +327,7 @@ class DROAnalysis(AnalysisMulitpleModels):
 
     def initializeAnalyzers(self, dro_type):
         """
-        Initilize Analysis objects for neural networks trained by the
+        Initialize Analysis objects for neural networks trained by the
         Frank-Wolfe method and PGD
         """
 
@@ -339,7 +340,12 @@ class DROAnalysis(AnalysisMulitpleModels):
         analyzer_elu = Analysis(model_elu, filepath_elu)
         return analyzer_relu, analyzer_elu
 
-    def plotLagDROModels(self, adversarial_type, budget, norm, bins, filename):
+    def plotLagDROModels(self, adversarial_type, budget, norm, bins):
+        """
+        Produce line graphs of adversarial attack success rates on neural
+        networks trained by WRM.
+        """
+
         # Pyplot supports LaTex syntax.
         labels = [r"$\gamma = {}$".format(gamma) for gamma in self.gammas]
 
@@ -362,9 +368,9 @@ class DROAnalysis(AnalysisMulitpleModels):
         fig.set_size_inches(width * 1.8, height)
 
         #plt.show()
-        filepath = "./images/" + filename
+        filepath = "./images/Lag_{}_norm={}.png".format(adversarial_type, "L2" if norm == 2 else "Linf")
         plt.savefig(filepath)
-        print("A graph is now saved at {}.".format(filepath))
+        print("Graph now saved at {}".format(filepath))
         plt.close()
 
     def compareLagDROModels(self, budget_two, budget_inf, bins):
@@ -373,11 +379,42 @@ class DROAnalysis(AnalysisMulitpleModels):
         different values of gamma by using four types of adversarial attacks.
         """
 
-        self.plotLagDROModels("FGSM", budget_inf, np.inf, bins, "FGSM_Linf.png")
-        self.plotLagDROModels("FGSM", budget_two, 2, bins, "FGSM_L2.png")
+        self.plotLagDROModels("FGSM", budget_inf, np.inf, bins)
+        self.plotLagDROModels("FGSM", budget_two, 2, bins)
 
-        self.plotLagDROModels("PGD", budget_inf, np.inf, bins, "PGD_Linf.png")
-        self.plotLagDROModels("PGD", budget_two, 2, bins, "PGD_L2.png")
+        self.plotLagDROModels("PGD", budget_inf, np.inf, bins)
+        self.plotLagDROModels("PGD", budget_two, 2, bins)
+
+    def plotDROModels(self, budget, norm, bins):      
+        """
+        Compare the robustness of neural networks trained by all three DRO
+        algorithms: WRM, the Frank-Wolfe method, and PGD. 
+        """
+
+        # The optimal gamma for both ReLu and ELU has been determined to be 1.0. 
+        optimal_gamma = 1.0
+        index_optimal_gamma = self.gammas.index(optimal_gamma)
+        LagAnalyzers = [self.Lag_relu_analyzers[index_optimal_gamma], self.Lag_elu_analyzers[index_optimal_gamma]]
+        FWandPGDanalyzers = [self.FW_relu_analyzer, self.FW_elu_analyzer, self.PGD_relu_analyzer, self.PGD_elu_analyzer]
+        analyzers = LagAnalyzers + FWandPGDanalyzers
+        labels = ["Lag ReLU", "Lag ELU", "FW ReLU", "FW ELU", "PGD ReLU", "PGD ELU"]
+
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+        self.plotPerturbationLineGraph(ax1, analyzers, labels, "FGSM", budget, norm, bins, record_file=None)
+        self.plotPerturbationLineGraph(ax2, analyzers, labels, "PGD", budget, norm, bins, record_file=None)
+
+        ax1.set_title("FGSM")
+        ax2.set_title("PGD")
+        plt.tight_layout()
+
+        width, height = fig.get_size_inches()
+        fig.set_size_inches(width * 1.8, height)
+
+        #plt.show()
+        filepath = "./images/DRO_norm={}.png".format("L2" if norm == 2 else "Linf")
+        plt.savefig(filepath)
+        print("Graph now saved {}".format(filepath))
+        plt.close()
 
 if __name__ == '__main__':
     budget_two = 4.0
@@ -386,9 +423,11 @@ if __name__ == '__main__':
 
     """
     erm_analysis = ERMAnalysis()   
-    erm_analysis.producePerturbationLineGraph(budget=budget_two, norm=2, bins=bins, filename='L2-norm.png')
-    erm_analysis.producePerturbationLineGraph(budget=budget_inf, norm=np.inf, bins=bins, filename='Linf-norm.png')
+    erm_analysis.plotERMModels(budget=budget_two, norm=2, bins=bins)
+    erm_analysis.plotERMModels(budget=budget_inf, norm=np.inf, bins=bins)
     """
 
     dro_analysis = DROAnalysis()
-    dro_analysis.compareLagDROModels(budget_two=budget_two, budget_inf=budget_inf, bins=bins)
+    #dro_analysis.compareLagDROModels(budget_two=budget_two, budget_inf=budget_inf, bins=bins)
+    dro_analysis.plotDROModels(budget=budget_two, norm=2, bins=bins)
+    dro_analysis.plotDROModels(budget=budget_inf, norm=np.inf, bins=bins)
