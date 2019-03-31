@@ -159,10 +159,10 @@ class AnalysisMulitpleModels:
         
         length = len(analyzers)
         results = [[] for i in range(length)]
-        increment_size = budget / bins
+        increment_size = budget / bins if bins != 0 else None
         perturbations = [i * increment_size for i in range(bins+1)]
         assert length <= 10
-        cmap = plt.get_cmap("tab10") # Colours of lines in a graph
+        cmap = plt.get_cmap("tab10") # Colours of lines in a graph; we have ten colours only. 
 
         # Evaluate the test accuracy; i.e. robustness against adverarial
         # attacks with the budget of 0. 
@@ -230,7 +230,11 @@ class ERMAnalysis(AnalysisMulitpleModels):
         budget_two = 3.0
         budget_inf = 1.0
 
-        #TODO: It may be neecessary to prune out those adversarial examples that are corectly classified. 
+        # Note that those adversarial examples that are corectly classified
+        # are not pruned out. 
+        # Also, note that they do not necesarily have the minimal perturbation
+        # size that is euqal to budget; i.e. the minimal perturbation size is
+        # not maximal. This is bizarre. 
         minimal_perturbations_two = analyzer.fgsmPerturbationDistribution(budget=budget_two, norm=2)
         minimal_perturbations_inf = analyzer.fgsmPerturbationDistribution(budget=budget_inf, norm=np.inf)
 
@@ -341,12 +345,13 @@ class DROAnalysis(AnalysisMulitpleModels):
 
         fig, (ax1, ax2) = plt.subplots(1, 2)
 
-        record_filepath = "./records/DRO_analysis.txt"
+        record_filepath = "./records/DRO_analysis_{}_norm={}.txt".format(adversarial_type, "L2" if norm == 2 else "Linf")
         try:
             record_file = open(record_filepath, mode='w')
         finally:
             self.plotPerturbationLineGraph(ax1, self.Lag_relu_analyzers, labels, adversarial_type, budget, norm, bins, record_file)
             self.plotPerturbationLineGraph(ax2, self.Lag_elu_analyzers, labels, adversarial_type, budget, norm, bins, record_file)
+            print("Record stored at {}".format(record_filepath))
             record_file.close()
 
         ax1.set_title("ReLU")
@@ -363,6 +368,11 @@ class DROAnalysis(AnalysisMulitpleModels):
         plt.close()
 
     def compareLagDROModels(self, budget_two, budget_inf, bins):
+        """
+        Compare the robustness of those neural networks trained by WRM with
+        different values of gamma by using four types of adversarial attacks.
+        """
+
         self.plotLagDROModels("FGSM", budget_inf, np.inf, bins, "FGSM_Linf.png")
         self.plotLagDROModels("FGSM", budget_two, 2, bins, "FGSM_L2.png")
 
