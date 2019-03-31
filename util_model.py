@@ -134,8 +134,10 @@ def loadModel(model, filepath):
     # Load the model on GPU if it is available.
     # Otherwise, use CPU. 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model.load_state_dict(torch.load(filepath, map_location=device))
-    "The model is now loaded."
+    if model is None:
+        model = torch.load(filepath)
+    else:
+        model.load_state_dict(torch.load(filepath, map_location=device))
     return model
 
 def evaluateModel(model):

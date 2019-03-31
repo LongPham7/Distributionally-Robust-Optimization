@@ -9,16 +9,19 @@ from adversarial_attack import FGSM, PGD, FGSMNative
 class Analysis:
 
     """
-    This class conducts robustness analysis of neural networks.
+    Class for the robustness analysis on a single neural network.
     """
 
     def __init__(self, model, filepath):
         self.model = loadModel(model, filepath)
+        #self.model = loadModel(model=None, filepath=filepath)
         
         # Use GPU for computation if it is available
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         print("The model is now loaded on {}.".format(self.device))
+
+        self.filepath = filepath
 
     def testAccuracy(self):
         """
@@ -71,6 +74,14 @@ class Analysis:
         return correct, total
 
     def fgsmPerturbationDistribution(self, budget, norm):
+        """
+        Compute the distribution of the minimal size of perturbations that are
+        required to trick the neural network into misclassification. 
+
+        This utilises the functionality of computing minimal perturbations 
+        provided by the ART library. 
+        """
+
         batch_size = 128
         test_loader = retrieveMNISTTestData(batch_size=batch_size)
         criterion = nn.CrossEntropyLoss()
@@ -95,6 +106,10 @@ class Analysis:
         return minimal_perturbations
 
     def displayHistogram(self, minimal_perturbations, title=None):
+        """
+        Display a histogram of minimal perturbation size.
+        """
+
         plt.hist(minimal_perturbations, bins=50, range=(0,1))
         plt.ylabel("Frequency")
         plt.xlabel("Minimal perturbation")
@@ -104,10 +119,19 @@ class Analysis:
 
 class AnalysisMulitpleModels:
 
+    """
+    Base class for the robustness analysis on multiple neural networks.
+    """
+
     def __init__(self):
         pass
 
     def printBasicResult(self, analyzer, budget_two, budget_inf):     
+        """
+        Print out (i) the accuracy of a neural network on MNIST and 
+        (ii) its robustness to FGSM and PGD.
+        """
+
         correct, total = analyzer.testAccuracy()
         print("Test accuracy: {} / {} = {}".format(correct, total, correct / total))
         
@@ -121,13 +145,24 @@ class AnalysisMulitpleModels:
         correct, total = analyzer.adversarialAccuracy('PGD', budget=budget_inf, norm=np.inf)
         print("Adversarial accuracy with respect to PGD-inf: {} / {} = {}".format(correct, total, correct / total))
 
-    def plotPerturbationLineGraph(self, ax, analyzers, labels, adversarial_type, budget, norm, bins):
+    def plotPerturbationLineGraph(self, ax, analyzers, labels, adversarial_type, budget, norm, bins, record_file):
+        """
+        Plot a line graph of the adversarial attack success rates with various
+        budgets for an adversarial attack. 
+
+        Arguments:
+            ax: Axes object (in pyplot) where a plot a drawn
+            bins: the number of different budgets to examine
+            record_file: file object to be used to record the adversarial
+                attack success rates
+        """
+        
         length = len(analyzers)
         results = [[] for i in range(length)]
         increment_size = budget / bins
         perturbations = [i * increment_size for i in range(bins+1)]
         assert length <= 10
-        colours = ["C{}".format(i) for i in range(10)]
+        cmap = plt.get_cmap("tab10") # Colours of lines in a graph
 
         # Evaluate the test accuracy; i.e. robustness against adverarial
         # attacks with the budget of 0. 
@@ -135,7 +170,7 @@ class AnalysisMulitpleModels:
             analyzer = analyzers[j]
             correct, total = analyzer.testAccuracy()
             results[j].append(1 - correct / total)
-            print("Test accuracy: {}".format(correct / total))
+        print("0-th iteration complete")
 
         # Evaluate the robustness against adversarial attacks with non-zero
         # budget. 
@@ -144,10 +179,19 @@ class AnalysisMulitpleModels:
                 analyzer = analyzers[j]
                 correct, total = analyzer.adversarialAccuracy(adversarial_type, increment_size * (i+1), norm)
                 results[j].append(1 - correct / total)
-            print("{}-th iteration complete".format(i))
+            print("{}-th iteration complete".format(i+1))
+
+        # Record the results in a file
+        for i in range(length):
+            analyzer = analyzers[i]
+            record_file.write("Adversarial attack on {}\n".format(analyzer.filepath))
+            record_file.write("Attack type: {}; Norm: {}\n".format(adversarial_type, norm))
+            record_file.write("Budget: {}; Bins: {}\n".format(budget, bins))
+            zipped_reuslt = list(zip(perturbations, results[i]))
+            record_file.write(str(zipped_reuslt) + "\n\n")
 
         for i in range(length):
-            ax.plot(perturbations, results[i], color=colours[i], linestyle='-', label=labels[i])
+            ax.plot(perturbations, results[i], color=cmap(i), linestyle='-', label=labels[i])
         ax.legend()
         ax.set_xlabel("Perturbation size")
         ax.set_ylabel("Adversarial attack success rate")
@@ -156,6 +200,10 @@ class AnalysisMulitpleModels:
         ax.set_yscale('log')
 
 class ERMAnalysis(AnalysisMulitpleModels):
+
+    """
+    Class for the robustness analysis on neural networks trained by ERM.
+    """
 
     def __init__(self):
         model_relu = MNISTClassifier(activation='relu')
@@ -175,6 +223,10 @@ class ERMAnalysis(AnalysisMulitpleModels):
         self.analyzer_sgd_elu = Analysis(model_sgd_elu, filepath_sgd_elu)
 
     def producePerturbationHistorgram(self, analyzer, filename):
+        """
+        Produce a histogram of the minimal size of perturbations. 
+        """
+
         budget_two = 3.0
         budget_inf = 1.0
 
@@ -205,13 +257,23 @@ class ERMAnalysis(AnalysisMulitpleModels):
         plt.close()
 
     def producePerturbationLineGraph(self, budget, norm, bins, filename):
+        """
+        Produce a line graph of adversarial attack success rates for various
+        budgets. 
+        """
+
         analyzers = [self.analyzer_relu, self.analyzer_elu, self.analyzer_sgd_relu, self.analyzer_sgd_elu]
         labels = ['ReLU Adam', 'ELU Adam', 'ReLU SGD', 'ELU SGD']
 
         fig, (ax1, ax2) = plt.subplots(1, 2)
 
-        self.plotPerturbationLineGraph(ax1, analyzers, labels, "FGSM", budget, norm, bins)
-        self.plotPerturbationLineGraph(ax2, analyzers, labels, "PGD", budget, norm, bins)
+        record_filepath = "./records/ERM_analysis.txt"
+        try:
+            record_file = open(record_filepath, mode='w')
+            self.plotPerturbationLineGraph(ax1, analyzers, labels, "FGSM", budget, norm, bins, record_file)
+            self.plotPerturbationLineGraph(ax2, analyzers, labels, "PGD", budget, norm, bins, record_file)
+        finally:
+            record_file.close()         
 
         ax1.set_title("FGSM")
         ax2.set_title("PGD")
@@ -228,6 +290,10 @@ class ERMAnalysis(AnalysisMulitpleModels):
 
 class DROAnalysis(AnalysisMulitpleModels):
 
+    """
+    Class for the robustness analysis on the neural networks trained by DRO.
+    """
+
     def __init__(self):
         self.gammas = [0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0]
         self.Lag_relu_analyzers, self.Lag_elu_analyzers = self.initializeLagAnalyzers()
@@ -235,13 +301,19 @@ class DROAnalysis(AnalysisMulitpleModels):
         self.PGD_relu_analyzer, self.PGD_elu_analyzer = self.initializeAnalyzers(dro_type='PGD')
 
     def initializeLagAnalyzers(self):
+        """
+        Initialize Analysis objects for neural networks trained by the DRO
+        algorithm proposed by Sinha et al.
+        """
+
+        folderpath = "./DRO_models/"
         Lag_relu_analyzers = []
         Lag_elu_analyzers = []
         length = len(self.gammas)
-        for i in range(len(length)):
+        for i in range(length):
             gamma = self.gammas[i]
-            filepath_relu = "./DRO_models/{}_DRO_activation={}_epsilon={}.pt".format("Lag", "relu", gamma)
-            filepath_elu = "./DRO_models/{}_DRO_activation={}_epsilon={}.pt".format("Lag", "elu", gamma)
+            filepath_relu = folderpath + "{}_DRO_activation={}_epsilon={}.pt".format("Lag", "relu", gamma)
+            filepath_elu = folderpath + "{}_DRO_activation={}_epsilon={}.pt".format("Lag", "elu", gamma)
             model_relu = MNISTClassifier(activation='relu')
             model_elu = MNISTClassifier(activation='elu')
             Lag_relu_analyzers.append(Analysis(model_relu, filepath_relu))
@@ -249,21 +321,34 @@ class DROAnalysis(AnalysisMulitpleModels):
         return Lag_relu_analyzers, Lag_elu_analyzers
 
     def initializeAnalyzers(self, dro_type):
-        filepath_relu = "./DRO_models/{}_DRO_activation={}_epsilon={}.pt".format(dro_type, "relu", 0.1)
-        filepath_elu = "./DRO_models/{}_DRO_activation={}_epsilon={}.pt".format(dro_type, "elu", 0.1)
+        """
+        Initilize Analysis objects for neural networks trained by the
+        Frank-Wolfe method and PGD
+        """
+
+        folderpath = "./DRO_models/"
+        filepath_relu = folderpath + "{}_DRO_activation={}_epsilon={}.pt".format(dro_type, "relu", 0.1)
+        filepath_elu = folderpath + "{}_DRO_activation={}_epsilon={}.pt".format(dro_type, "elu", 0.1)
         model_relu = MNISTClassifier(activation='relu')
         model_elu = MNISTClassifier(activation='elu')
         analyzer_relu = Analysis(model_relu, filepath_relu)
         analyzer_elu = Analysis(model_elu, filepath_elu)
         return analyzer_relu, analyzer_elu
 
-    def compareLagDROModels(self, adversarial_type, budget, norm, bins, filename):
+    def plotLagDROModels(self, adversarial_type, budget, norm, bins, filename):
+        # Pyplot supports LaTex syntax.
         labels = [r"$\gamma = {}$".format(gamma) for gamma in self.gammas]
 
         fig, (ax1, ax2) = plt.subplots(1, 2)
-        self.plotPerturbationLineGraph(ax1, self.Lag_relu_analyzers, labels, adversarial_type, budget, norm, bins)
-        self.plotPerturbationLineGraph(ax2, self.Lag_elu_analyzers, labels, adversarial_type, budget, norm, bins)
-        
+
+        record_filepath = "./records/DRO_analysis.txt"
+        try:
+            record_file = open(record_filepath, mode='w')
+        finally:
+            self.plotPerturbationLineGraph(ax1, self.Lag_relu_analyzers, labels, adversarial_type, budget, norm, bins, record_file)
+            self.plotPerturbationLineGraph(ax2, self.Lag_elu_analyzers, labels, adversarial_type, budget, norm, bins, record_file)
+            record_file.close()
+
         ax1.set_title("ReLU")
         ax2.set_title("ELU")
         plt.tight_layout()
@@ -277,22 +362,23 @@ class DROAnalysis(AnalysisMulitpleModels):
         print("A graph is now saved at {}.".format(filepath))
         plt.close()
 
-if __name__ == '__main__':
-    #erm_analysis = ERMAnalysis()
-    dro_analysis = DROAnalysis()
+    def compareLagDROModels(self, budget_two, budget_inf, bins):
+        self.plotLagDROModels("FGSM", budget_inf, np.inf, bins, "FGSM_Linf.png")
+        self.plotLagDROModels("FGSM", budget_two, 2, bins, "FGSM_L2.png")
 
+        self.plotLagDROModels("PGD", budget_inf, np.inf, bins, "PGD_Linf.png")
+        self.plotLagDROModels("PGD", budget_two, 2, bins, "PGD_L2.png")
+
+if __name__ == '__main__':
     budget_two = 4.0
     budget_inf = 0.4
-    bins = 2
-    
+    bins = 20
+
     """
+    erm_analysis = ERMAnalysis()   
     erm_analysis.producePerturbationLineGraph(budget=budget_two, norm=2, bins=bins, filename='L2-norm.png')
     erm_analysis.producePerturbationLineGraph(budget=budget_inf, norm=np.inf, bins=bins, filename='Linf-norm.png')
     """
 
-    adversarial_type = "FGSM"
-    norm = np.inf
-    norm_type = "L2" if norm == 2 else "Linf"
-    filename = "{}_{}.png".format(adversarial_type, norm_type)
-
-    dro_analysis.compareLagDROModels(adversarial_type, budget_inf, norm, bins, filename)
+    dro_analysis = DROAnalysis()
+    dro_analysis.compareLagDROModels(budget_two=budget_two, budget_inf=budget_inf, bins=bins)
