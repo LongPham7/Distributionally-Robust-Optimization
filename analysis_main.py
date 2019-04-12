@@ -4,6 +4,10 @@ from adversarial_attack import FGSM, PGD, FGSMNative
 from util_model import MNISTClassifier
 from util_analysis import Analysis, AnalysisMulitpleModels
 
+"""
+This module contains classes for robustness analysis of neural networks. 
+"""
+
 class ERMAnalysis(AnalysisMulitpleModels):
 
     """
@@ -61,7 +65,7 @@ class ERMAnalysis(AnalysisMulitpleModels):
         
         #plt.show()
         filepath = "./images/" + filename
-        plt.savefig(filepath)
+        plt.savefig(filepath, dpi=300)
         print("Histogram now saved at {}".format(filepath))
         plt.close()
 
@@ -93,7 +97,7 @@ class ERMAnalysis(AnalysisMulitpleModels):
 
         #plt.show()
         filepath = "./images/ERM_norm={}.png".format("L2" if norm == 2 else "Linf")
-        plt.savefig(filepath)
+        plt.savefig(filepath, dpi=300)
         print("Graph now saved at {}".format(filepath))
         plt.close()
 
@@ -173,7 +177,7 @@ class DROAnalysis(AnalysisMulitpleModels):
 
         #plt.show()
         filepath = "./images/Lag_{}_norm={}.png".format(adversarial_type, "L2" if norm == 2 else "Linf")
-        plt.savefig(filepath)
+        plt.savefig(filepath, dpi=300)
         print("Graph now saved at {}".format(filepath))
         plt.close()
 
@@ -216,7 +220,7 @@ class DROAnalysis(AnalysisMulitpleModels):
 
         #plt.show()
         filepath = "./images/DRO_norm={}.png".format("L2" if norm == 2 else "Linf")
-        plt.savefig(filepath)
+        plt.savefig(filepath, dpi=300)
         print("Graph now saved at {}".format(filepath))
         plt.close()
 

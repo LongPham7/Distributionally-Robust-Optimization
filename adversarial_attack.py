@@ -4,10 +4,13 @@ from torch import optim, nn
 import torch.nn.functional as F
 from util_MNIST import retrieveMNISTTestData
 from util_model import SimpleNeuralNet, loadModel, wrapModel
-
 from art.attacks import FastGradientMethod, ProjectedGradientDescent
 
 img_rows, img_cols = 28, 28
+
+"""
+This module contains classes for adversarial attacks.
+"""
 
 class FGSM:
     """

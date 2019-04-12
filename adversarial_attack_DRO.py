@@ -203,6 +203,14 @@ class FrankWolfeDRO(AdversarialTraining):
         return result.to(self.device)
 
 def trainDROModel(dro_type, epochs, steps_adv, budget, activation, batch_size, loss_criterion, cost_function=None):
+    """
+    Train a neural network using one of the following DRO methods:
+        - PGD
+        - Lagrangian relaxation based method developed by Sinha et al. 
+            This is also called WRM.
+        - the Frank-Wolfe method based approach developed by Staib et al. 
+    """
+    
     model = MNISTClassifier(activation=activation)
     if dro_type == 'PGD':
         train_module = ProjetcedDRO(model, loss_criterion)
@@ -215,7 +223,8 @@ def trainDROModel(dro_type, epochs, steps_adv, budget, activation, batch_size, l
         raise ValueError("The type of DRO is not valid.")
 
     train_module.train(budget=budget, batch_size=batch_size, epochs=epochs, steps_adv=steps_adv)
-    filepath = "./DRO_models/{}_DRO_activation={}_epsilon={}.pt".format(dro_type, activation, budget)
+    folderpath = "./DRO_models/"
+    filepath = folderpath + "{}_DRO_activation={}_epsilon={}.pt".format(dro_type, activation, budget)
     torch.save(model.state_dict(), filepath)
     print("A neural network adversarially trained using {} is now saved at {}.".format(dro_type, filepath))
 
@@ -237,4 +246,3 @@ if __name__ == "__main__":
     for gamma in gammas:
         trainDROModel('Lag', epochs, steps_adv, gamma, 'relu', batch_size, loss_criterion, cost_function=cost_function)
         trainDROModel('Lag', epochs, steps_adv, gamma, 'elu', batch_size, loss_criterion, cost_function=cost_function)
-

@@ -66,7 +66,7 @@ class MNISTClassifier(nn.Module):
         outputs = outputs.view((-1, self.num_flat_features(outputs)))
         outputs = self.fc1(outputs)
         # Note that because we use CrosEntropyLoss, which combines
-        # nn.LogSoftmax and nn.NLLoss, we do not need a softmax layer as the
+        # nn.LogSoftmax and nn.NLLLoss, we do not need a softmax layer as the
         # last layer. 
         return outputs
 
@@ -103,6 +103,7 @@ def trainModel(model, loss_criterion, optimizer, epochs=25, filepath=None):
 
     running_loss = 0.0
     train_loader = retrieveMNISTTrainingData()
+    period = 20
     for epoch in range(epochs):
         for i, data in enumerate(train_loader, 0):
             inputs, labels = data
@@ -114,13 +115,13 @@ def trainModel(model, loss_criterion, optimizer, epochs=25, filepath=None):
             loss.backward()
             running_loss += loss.item()
             optimizer.step()
-            if i%20 == 19: 
-                print("Epoch: {}, iteration: {}, loss: {}".format(epoch, i, running_loss / 20))
+            if i%period == period - 1: 
+                print("Epoch: {}, iteration: {}, loss: {}".format(epoch, i, running_loss / period))
                 running_loss = 0.0
     print("Training is complete.")
     if filepath is not None:
         torch.save(model.state_dict(), filepath)
-        print("The model is now saved at {}.".foramt(filepath))
+        print("The model is now saved at {}.".format(filepath))
 
 def loadModel(model, filepath):
     """
@@ -172,17 +173,17 @@ def evaluateModelSingleInput(model, image):
 
 if __name__ == "__main__":
     epochs = 25
-    # Note that nn.CrosEntropyLoss combines nn.LogSoftmax and nn.NLLoss. 
+    # Note that nn.CrosEntropyLoss combines nn.LogSoftmax and nn.NLLLoss. 
     loss_criterion = nn.CrossEntropyLoss()
     learning_rate = 0.001
 
     model_elu = MNISTClassifier(activation='elu')
-    #optimizer_elu = optim.Adam(model_elu.parameters(), lr=learning_rate)
-    optimizer_elu = optim.SGD(model_elu.parameters(), lr=learning_rate)
+    optimizer_elu = optim.Adam(model_elu.parameters(), lr=learning_rate)
+    #optimizer_elu = optim.SGD(model_elu.parameters(), lr=learning_rate)
 
     model_relu = MNISTClassifier(activation='relu')
-    #optimizer_relu = optim.Adam(model_relu.parameters(), lr=learning_rate)
-    optimizer_relu = optim.SGD(model_relu.parameters(), lr=learning_rate)
+    optimizer_relu = optim.Adam(model_relu.parameters(), lr=learning_rate)
+    #optimizer_relu = optim.SGD(model_relu.parameters(), lr=learning_rate)
 
     # The file paths are only valid in UNIX systems. 
     filepath_elu = './experiment_models/MNISTClassifier_elu.pt'
