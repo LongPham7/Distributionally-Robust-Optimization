@@ -4,6 +4,7 @@ data/
 DRO_models/
 DRO_models_full_information/
 ERM_models/
+Loss_models/
 experiment_models/
 images/
 records/

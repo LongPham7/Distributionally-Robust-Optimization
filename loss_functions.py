@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from util_MNIST import retrieveMNISTTrainingData
 from util_model import MNISTClassifier, trainModel
 from adversarial_attack_DRO import ProjetcedDRO, LagrangianDRO, FrankWolfeDRO
 
@@ -14,20 +15,20 @@ def f_1(outputs, labels, device=None):
     return F.cross_entropy(outputs, labels)
 
 def f_2(outputs, labels):
-    outputs = F.softmax(outputs)
+    outputs = F.softmax(outputs, dim=1)
     return f_6(outputs, labels)
 
 def f_3(outputs, labels):
-    outputs = F.softmax(outputs)
+    outputs = F.softmax(outputs, dim=1)
     return f_7(outputs, labels)
 
 def f_4(outputs, labels):
-    outputs = F.softmax(outputs)
+    outputs = F.softmax(outputs, dim=1)
     reference_outputs = torch.gather(outputs, 1, labels.view(-1, 1).long()).view(-1)
     return torch.mean(torch.clamp(0.5 - reference_outputs, min=0))
 
 def f_5(outputs, labels):
-    outputs = F.softmax(outputs)
+    outputs = F.softmax(outputs, dim=1)
     reference_outputs = torch.gather(outputs, 1, labels.view(-1, 1).long()).view(-1)
     return torch.mean(torch.log2(2 - 2 * reference_outputs))
 
@@ -67,7 +68,7 @@ def trainModelLoss(dro_type, epochs, steps_adv, budget, activation, batch_size, 
         raise ValueError("The type of DRO is not valid.")
 
     train_module.train(budget=budget, batch_size=batch_size, epochs=epochs, steps_adv=steps_adv)
-    folderpath = "./Loss_experiments/"
+    folderpath = "./Loss_models/"
     filepath = folderpath + "{}_DRO_activation={}_epsilon={}_loss={}.pt".format(dro_type, activation, budget, loss_criterion.__name__)
     torch.save(model.state_dict(), filepath)
     print("A neural network adversarially trained using {} is now saved at {}.".format(dro_type, filepath))
@@ -80,16 +81,27 @@ if __name__ == "__main__":
     batch_size = 128
     loss_criterions = [f_1, f_2, f_3, f_4, f_5, f_6, f_7]
     #loss_criterions = [f_1, f_2, f_3]
-    #loss_criterions = [f_3, f_4]
+    #loss_criterions = [f_4, f_5]
     #loss_criterions = [f_6, f_7]
     cost_function = lambda x, y: torch.dist(x, y, p=2) ** 2
 
     for loss_criterion in loss_criterions:
-        trainModelLoss("FW", epochs, steps_adv, epsilon, "relu", batch_size, loss_criterion, cost_function=None)
-        trainModelLoss("PGD", epochs, steps_adv, epsilon, "elu", batch_size, loss_criterion, cost_function=None)
+        #trainModelLoss("FW", epochs, steps_adv, epsilon, "relu", batch_size, loss_criterion)
+        #trainModelLoss("PGD", epochs, steps_adv, epsilon, "elu", batch_size, loss_criterion)
+        trainModelLoss("Lag", epochs, steps_adv, optimal_gamma, "relu", batch_size, loss_criterion, cost_function=cost_function)
 
     """
-    loss_criterion = f_7
-    trainModelLoss("FW", epochs, steps_adv, epsilon, "relu", batch_size, loss_criterion, cost_function=None)
-    trainModelLoss("PGD", epochs, steps_adv, epsilon, "elu", batch_size, loss_criterion, cost_function=None)
+    data_loader = retrieveMNISTTrainingData(batch_size=1, shuffle=False)
+    iterator = iter(data_loader)
+    images, labels = iterator.next()
+
+    print("Shape of image: {}; shape of labels: {}".format(images.size(), labels.size()))
+    #print("images: {}".format(images))
+    print("labels: {}".format(labels))
+
+    model = MNISTClassifier()
+    loss_criterion = f_6
+    outputs = F.softmax(model(images), dim=1)
+    print("softmax outputs: {}".format(outputs))
+    print("loss: {}".format(loss_criterion(outputs, labels)))
     """

@@ -81,12 +81,9 @@ class ERMAnalysis(AnalysisMulitpleModels):
         fig, (ax1, ax2) = plt.subplots(1, 2)
 
         record_filepath = "./records/ERM_analysis_norm={}.txt".format("L2" if norm == 2 else "Linf")
-        try:
-            record_file = open(record_filepath, mode='w')
-            self.plotPerturbationLineGraph(ax1, analyzers, labels, "FGSM", budget, norm, bins, record_file)
-            self.plotPerturbationLineGraph(ax2, analyzers, labels, "PGD", budget, norm, bins, record_file)
-        finally:
-            record_file.close()         
+        with open(record_filepath, mode='w') as f:
+            self.plotPerturbationLineGraph(ax1, analyzers, labels, "FGSM", budget, norm, bins, f)
+            self.plotPerturbationLineGraph(ax2, analyzers, labels, "PGD", budget, norm, bins, f)
 
         ax1.set_title("FGSM")
         ax2.set_title("PGD")
@@ -109,44 +106,45 @@ class DROAnalysis(AnalysisMulitpleModels):
 
     def __init__(self):
         self.gammas = [0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0]
+
+        def initializeLagAnalyzers(self):
+            """
+            Initialize Analysis objects for neural networks trained by the DRO
+            algorithm proposed by Sinha et al.
+            """
+
+            folderpath = "./DRO_models/"
+            Lag_relu_analyzers = []
+            Lag_elu_analyzers = []
+            length = len(self.gammas)
+            for i in range(length):
+                gamma = self.gammas[i]
+                filepath_relu = folderpath + "{}_DRO_activation={}_epsilon={}.pt".format("Lag", "relu", gamma)
+                filepath_elu = folderpath + "{}_DRO_activation={}_epsilon={}.pt".format("Lag", "elu", gamma)
+                model_relu = MNISTClassifier(activation='relu')
+                model_elu = MNISTClassifier(activation='elu')
+                Lag_relu_analyzers.append(Analysis(model_relu, filepath_relu))
+                Lag_elu_analyzers.append(Analysis(model_elu, filepath_elu))
+            return Lag_relu_analyzers, Lag_elu_analyzers
+
+        def initializeAnalyzers(self, dro_type):
+            """
+            Initialize Analysis objects for neural networks trained by the
+            Frank-Wolfe method and PGD
+            """
+
+            folderpath = "./DRO_models/"
+            filepath_relu = folderpath + "{}_DRO_activation={}_epsilon={}.pt".format(dro_type, "relu", 0.1)
+            filepath_elu = folderpath + "{}_DRO_activation={}_epsilon={}.pt".format(dro_type, "elu", 0.1)
+            model_relu = MNISTClassifier(activation='relu')
+            model_elu = MNISTClassifier(activation='elu')
+            analyzer_relu = Analysis(model_relu, filepath_relu)
+            analyzer_elu = Analysis(model_elu, filepath_elu)
+            return analyzer_relu, analyzer_elu
+
         self.Lag_relu_analyzers, self.Lag_elu_analyzers = self.initializeLagAnalyzers()
         self.FW_relu_analyzer, self.FW_elu_analyzer = self.initializeAnalyzers(dro_type='FW')
         self.PGD_relu_analyzer, self.PGD_elu_analyzer = self.initializeAnalyzers(dro_type='PGD')
-
-    def initializeLagAnalyzers(self):
-        """
-        Initialize Analysis objects for neural networks trained by the DRO
-        algorithm proposed by Sinha et al.
-        """
-
-        folderpath = "./DRO_models/"
-        Lag_relu_analyzers = []
-        Lag_elu_analyzers = []
-        length = len(self.gammas)
-        for i in range(length):
-            gamma = self.gammas[i]
-            filepath_relu = folderpath + "{}_DRO_activation={}_epsilon={}.pt".format("Lag", "relu", gamma)
-            filepath_elu = folderpath + "{}_DRO_activation={}_epsilon={}.pt".format("Lag", "elu", gamma)
-            model_relu = MNISTClassifier(activation='relu')
-            model_elu = MNISTClassifier(activation='elu')
-            Lag_relu_analyzers.append(Analysis(model_relu, filepath_relu))
-            Lag_elu_analyzers.append(Analysis(model_elu, filepath_elu))
-        return Lag_relu_analyzers, Lag_elu_analyzers
-
-    def initializeAnalyzers(self, dro_type):
-        """
-        Initialize Analysis objects for neural networks trained by the
-        Frank-Wolfe method and PGD
-        """
-
-        folderpath = "./DRO_models/"
-        filepath_relu = folderpath + "{}_DRO_activation={}_epsilon={}.pt".format(dro_type, "relu", 0.1)
-        filepath_elu = folderpath + "{}_DRO_activation={}_epsilon={}.pt".format(dro_type, "elu", 0.1)
-        model_relu = MNISTClassifier(activation='relu')
-        model_elu = MNISTClassifier(activation='elu')
-        analyzer_relu = Analysis(model_relu, filepath_relu)
-        analyzer_elu = Analysis(model_elu, filepath_elu)
-        return analyzer_relu, analyzer_elu
 
     def plotLagDROModels(self, adversarial_type, budget, norm, bins):
         """
@@ -160,13 +158,10 @@ class DROAnalysis(AnalysisMulitpleModels):
         fig, (ax1, ax2) = plt.subplots(1, 2)
 
         record_filepath = "./records/DRO_analysis_{}_norm={}.txt".format(adversarial_type, "L2" if norm == 2 else "Linf")
-        try:
-            record_file = open(record_filepath, mode='w')
-        finally:
-            self.plotPerturbationLineGraph(ax1, self.Lag_relu_analyzers, labels, adversarial_type, budget, norm, bins, record_file)
-            self.plotPerturbationLineGraph(ax2, self.Lag_elu_analyzers, labels, adversarial_type, budget, norm, bins, record_file)
+        with open(record_filepath, mode='w') as f:
+            self.plotPerturbationLineGraph(ax1, self.Lag_relu_analyzers, labels, adversarial_type, budget, norm, bins, f)
+            self.plotPerturbationLineGraph(ax2, self.Lag_elu_analyzers, labels, adversarial_type, budget, norm, bins, f)
             print("Record stored at {}".format(record_filepath))
-            record_file.close()
 
         ax1.set_title("ReLU")
         ax2.set_title("ELU")
@@ -224,6 +219,102 @@ class DROAnalysis(AnalysisMulitpleModels):
         print("Graph now saved at {}".format(filepath))
         plt.close()
 
+class LossAnalysis(AnalysisMulitpleModels):
+
+    """
+    Class for the robustness analysis various loss functions
+    """
+
+    def __init__(self):
+
+        def initializeAnalyzers(dro_type, activation, budget):
+            analyzers = []
+            filepath = folderpath = "./Loss_models/"
+            for i in range(1, 8):
+                filepath = folderpath + "{}_DRO_activation={}_epsilon={}_loss={}.pt".format(dro_type, activation, budget, "f_{}".format(i))
+                model = MNISTClassifier(activation=activation)
+                analyzers.append(Analysis(model, filepath))
+            return analyzers
+        
+        epsilon = 0.1
+        optimal_gamma = 1.0
+        self.FWAnalyzers = initializeAnalyzers("FW", activation='relu', budget=epsilon)
+        self.PGDAnalyzers = initializeAnalyzers("PGD", activation = 'elu', budget=epsilon)
+        self.LagAnalyzers = initializeAnalyzers("Lag", activation='relu', budget=optimal_gamma)
+
+    def plotModelsWithLosses(self, adversarial_type, budget, norm, bins):
+        """
+        Plot adversarial atack success rates of the following two types of
+        neural networks with the seven loss functions given in Carlini &
+        Wagner:
+        - activation: ReLU; training procedure: the Frank-Wolfe method
+        - actiivatoin: ELU; training procedure: PGD.
+        """
+
+        labels = [r"$f_{}$".format(i) for i in range(1, 8)]
+
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+
+        record_filepath = "./records/Loss_analysis_{}_norm={}.txt".format(adversarial_type, "L2" if norm == 2 else "Linf")
+        with open(record_filepath, mode='w') as f:
+            self.plotPerturbationLineGraph(ax1, self.FWAnalyzers, labels, adversarial_type, budget, norm, bins, f)
+            self.plotPerturbationLineGraph(ax2, self.PGDAnalyzers, labels, adversarial_type, budget, norm, bins, f)
+            print("Record stored at {}".format(record_filepath))
+
+        ax1.set_title("FW")
+        ax2.set_title("PGD")
+        plt.tight_layout()
+
+        width, height = fig.get_size_inches()
+        fig.set_size_inches(width * 1.8, height)
+
+        #plt.show()
+        filepath = "./images/Loss_adversarial_type={}norm={}.png".format(adversarial_type, "L2" if norm == 2 else "Linf")
+        plt.savefig(filepath, dpi=300)
+        print("Graph now saved at {}".format(filepath))
+        plt.close()
+
+    def compareLosses(self, budget_two, budget_inf, bins):
+        """
+        Compare the seven loss functions in terms of robustness of the
+        resulting neural networks.
+        """
+
+        self.plotModelsWithLosses("FGSM", budget_inf, np.inf, bins)
+        self.plotModelsWithLosses("FGSM", budget_two, 2, bins)
+
+        self.plotModelsWithLosses("PGD", budget_inf, np.inf, bins)
+        self.plotModelsWithLosses("PGD", budget_two, 2, bins)
+
+    def pltoRobustnessLagModels(self, budget, norm, bins):
+        """
+        Plot the adversarial success rates of neural networks trained by WRM
+        with gamma being 1.0 and the seven loss listed in Carlini & Wagner. 
+        """
+
+        labels = [r"$f_{}$".format(i) for i in range(1, 8)]
+
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+
+        record_filepath = "./records/Loss_Lag_analysis_norm={}budget={}.txt".format("L2" if norm == 2 else "Linf", budget)
+        with open(record_filepath, "w") as f:
+            self.plotPerturbationLineGraph(ax1, self.LagAnalyzers, labels, "FGSM", budget, norm, bins, f)
+            self.plotPerturbationLineGraph(ax2, self.LagAnalyzers, labels, "PGD", budget, norm, bins, f)
+            print("Record stored at {}".format(record_filepath))
+
+        ax1.set_title("FGSM")
+        ax2.set_title("PGD")
+        plt.tight_layout()
+
+        width, height = fig.get_size_inches()
+        fig.set_size_inches(width * 1.8, height)
+
+        #plt.show()
+        filepath = "./images/Loss_Lag_norm={}.png".format("L2" if norm == 2 else "Linf")
+        plt.savefig(filepath, dpi=300)
+        print("Graph now saved at {}".format(filepath))
+        plt.close()            
+
 if __name__ == '__main__':
     budget_two = 4.0
     budget_inf = 0.4
@@ -235,7 +326,16 @@ if __name__ == '__main__':
     erm_analysis.plotERMModels(budget=budget_inf, norm=np.inf, bins=bins)
     """
 
+    """
     dro_analysis = DROAnalysis()
-    #dro_analysis.compareLagDROModels(budget_two=budget_two, budget_inf=budget_inf, bins=bins)
+    dro_analysis.compareLagDROModels(budget_two=budget_two, budget_inf=budget_inf, bins=bins)
     dro_analysis.plotDROModels(budget=budget_two, norm=2, bins=bins)
     dro_analysis.plotDROModels(budget=budget_inf, norm=np.inf, bins=bins)
+    """
+
+    """
+    loss_analysis = LossAnalysis()
+    loss_analysis.compareLosses(budget_two=budget_two, budget_inf=budget_inf, bins=bins)
+    loss_analysis.pltoRobustnessLagModels(budget=budget_inf, norm=np.inf, bins=bins)
+    loss_analysis.pltoRobustnessLagModels(budget=budget_two, norm=2, bins=bins)
+    """

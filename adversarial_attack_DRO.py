@@ -237,11 +237,11 @@ if __name__ == "__main__":
     loss_criterion = nn.CrossEntropyLoss()
     cost_function = lambda x, y: torch.dist(x, y, p=2) ** 2
 
-    trainDROModel('PGD', epochs, steps_adv, epsilon, 'relu', batch_size, loss_criterion, cost_function=None)
-    trainDROModel('FW', epochs, steps_adv, epsilon, 'relu', batch_size, loss_criterion, cost_function=None)
+    trainDROModel('PGD', epochs, steps_adv, epsilon, 'relu', batch_size, loss_criterion)
+    trainDROModel('FW', epochs, steps_adv, epsilon, 'relu', batch_size, loss_criterion)
 
-    trainDROModel('PGD', epochs, steps_adv, epsilon, 'elu', batch_size, loss_criterion, cost_function=None)
-    trainDROModel('FW', epochs, steps_adv, epsilon, 'elu', batch_size, loss_criterion, cost_function=None)
+    trainDROModel('PGD', epochs, steps_adv, epsilon, 'elu', batch_size, loss_criterion)
+    trainDROModel('FW', epochs, steps_adv, epsilon, 'elu', batch_size, loss_criterion)
 
     for gamma in gammas:
         trainDROModel('Lag', epochs, steps_adv, gamma, 'relu', batch_size, loss_criterion, cost_function=cost_function)
