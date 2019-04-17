@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 img_rows, img_cols = 28, 28
 
+
 def retrieveMNISTTrainingData(batch_size=128, shuffle=True):
     """
     Retrieve a training dataset of MNIST.
@@ -19,9 +20,12 @@ def retrieveMNISTTrainingData(batch_size=128, shuffle=True):
     """
 
     transform = transforms.Compose([transforms.ToTensor()])
-    MNIST_train_data = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)  
-    train_loader = torch.utils.data.DataLoader(MNIST_train_data, batch_size=batch_size, shuffle=shuffle, num_workers=0)
+    MNIST_train_data = torchvision.datasets.MNIST(
+        root='./data', train=True, download=True, transform=transform)
+    train_loader = torch.utils.data.DataLoader(
+        MNIST_train_data, batch_size=batch_size, shuffle=shuffle, num_workers=0)
     return train_loader
+
 
 def retrieveMNISTTestData(batch_size=128, shuffle=False):
     """
@@ -35,9 +39,12 @@ def retrieveMNISTTestData(batch_size=128, shuffle=False):
     """
 
     transform = transforms.Compose([transforms.ToTensor()])
-    MNIST_test_data = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
-    test_loader = torch.utils.data.DataLoader(MNIST_test_data, batch_size=batch_size, shuffle=shuffle, num_workers=0)
+    MNIST_test_data = torchvision.datasets.MNIST(
+        root='./data', train=False, download=True, transform=transform)
+    test_loader = torch.utils.data.DataLoader(
+        MNIST_test_data, batch_size=batch_size, shuffle=shuffle, num_workers=0)
     return test_loader
+
 
 def randomStart(center, epsilon):
     """
@@ -60,10 +67,11 @@ def randomStart(center, epsilon):
     center.data.add_(epsilon / length * direction)
     center.data.clamp_(0, 1)
 
+
 def displayImage(image, label):
     """
     Display an image of a digit from MNIST.
-    
+
     Arguments:
         image: input image. The shape of this input must be compatible
                 with (img_rows, img_cols).
@@ -74,6 +82,7 @@ def displayImage(image, label):
     plt.imshow(image, vmin=0.0, vmax=1.0, cmap='gray')
     plt.title("Predicted label: {}".format(label))
     plt.show()
+
 
 if __name__ == "__main__":
     train_loader = retrieveMNISTTrainingData(batch_size=1, shuffle=False)

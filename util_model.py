@@ -7,6 +7,7 @@ from util_MNIST import retrieveMNISTTrainingData, retrieveMNISTTestData, display
 
 img_rows, img_cols = 28, 28
 
+
 class SimpleNeuralNet(nn.Module):
     """
     Simple neural network consisting of one hidden layer for MNIST.
@@ -31,6 +32,7 @@ class SimpleNeuralNet(nn.Module):
             num_features *= s
         return num_features
 
+
 class MNISTClassifier(nn.Module):
     """
     Convolutional neural network used in the tutorial for CleverHans.
@@ -47,11 +49,14 @@ class MNISTClassifier(nn.Module):
 
         super().__init__()
         self.activation = activation
-        self.conv1 = nn.Conv2d(1, nb_filters, kernel_size=(8, 8), stride=(2, 2), padding=(3, 3))
+        self.conv1 = nn.Conv2d(1, nb_filters, kernel_size=(
+            8, 8), stride=(2, 2), padding=(3, 3))
         nn.init.xavier_uniform_(self.conv1.weight)
-        self.conv2 = nn.Conv2d(nb_filters, nb_filters * 2, kernel_size=(6, 6), stride=(2, 2))
+        self.conv2 = nn.Conv2d(nb_filters, nb_filters * 2,
+                               kernel_size=(6, 6), stride=(2, 2))
         nn.init.xavier_uniform_(self.conv2.weight)
-        self.conv3 = nn.Conv2d(nb_filters * 2, nb_filters * 2, kernel_size=(5, 5), stride=(1, 1))
+        self.conv3 = nn.Conv2d(
+            nb_filters * 2, nb_filters * 2, kernel_size=(5, 5), stride=(1, 1))
         nn.init.xavier_uniform_(self.conv3.weight)
         self.fc1 = nn.Linear(nb_filters * 2, 10)
         nn.init.xavier_uniform_(self.fc1.weight)
@@ -67,7 +72,7 @@ class MNISTClassifier(nn.Module):
         outputs = self.fc1(outputs)
         # Note that because we use CrosEntropyLoss, which combines
         # nn.LogSoftmax and nn.NLLLoss, we do not need a softmax layer as the
-        # last layer. 
+        # last layer.
         return outputs
 
     def applyActivation(self, x):
@@ -85,6 +90,7 @@ class MNISTClassifier(nn.Module):
             num_features *= s
         return num_features
 
+
 def wrapModel(model, loss_criterion):
     """
     Wrap a PyTorch model in the frametwork of ART (Adversarial Robustness
@@ -93,12 +99,13 @@ def wrapModel(model, loss_criterion):
 
     optimizer = optim.Adam(model.parameters())
     input_shape = (1, img_rows, img_cols)
-    return PyTorchClassifier((0,1), model, loss_criterion, optimizer, input_shape, nb_classes=10)
+    return PyTorchClassifier((0, 1), model, loss_criterion, optimizer, input_shape, nb_classes=10)
+
 
 def trainModel(model, loss_criterion, optimizer, epochs=25, filepath=None):
-    # USe GPU for computation if it is available. 
+    # USe GPU for computation if it is available.
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model.to(device) # Load the neural network on GPU if it is available
+    model.to(device)  # Load the neural network on GPU if it is available
     print("The neural network is now loaded on {}.".format(device))
 
     running_loss = 0.0
@@ -115,13 +122,15 @@ def trainModel(model, loss_criterion, optimizer, epochs=25, filepath=None):
             loss.backward()
             running_loss += loss.item()
             optimizer.step()
-            if i%period == period - 1: 
-                print("Epoch: {}, iteration: {}, loss: {}".format(epoch, i, running_loss / period))
+            if i % period == period - 1:
+                print("Epoch: {}, iteration: {}, loss: {}".format(
+                    epoch, i, running_loss / period))
                 running_loss = 0.0
     print("Training is complete.")
     if filepath is not None:
         torch.save(model.state_dict(), filepath)
         print("The model is now saved at {}.".format(filepath))
+
 
 def loadModel(model, filepath):
     """
@@ -136,13 +145,14 @@ def loadModel(model, filepath):
     """
 
     # Load the model on GPU if it is available.
-    # Otherwise, use CPU. 
+    # Otherwise, use CPU.
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if model is None:
         model = torch.load(filepath)
     else:
         model.load_state_dict(torch.load(filepath, map_location=device))
     return model
+
 
 def evaluateModel(model):
     # Use GPU for computation if it is available
@@ -162,6 +172,7 @@ def evaluateModel(model):
             correct += (predicted == labels).sum().item()
     return correct, total
 
+
 def evaluateModelSingleInput(model, image):
     # Use GPU for computation if it is available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -171,9 +182,10 @@ def evaluateModelSingleInput(model, image):
     _, prediction = torch.max(otuput.data, 1)
     return prediction.item()
 
+
 if __name__ == "__main__":
     epochs = 25
-    # Note that nn.CrosEntropyLoss combines nn.LogSoftmax and nn.NLLLoss. 
+    # Note that nn.CrosEntropyLoss combines nn.LogSoftmax and nn.NLLLoss.
     loss_criterion = nn.CrossEntropyLoss()
     learning_rate = 0.001
 
@@ -185,9 +197,11 @@ if __name__ == "__main__":
     optimizer_relu = optim.Adam(model_relu.parameters(), lr=learning_rate)
     #optimizer_relu = optim.SGD(model_relu.parameters(), lr=learning_rate)
 
-    # The file paths are only valid in UNIX systems. 
+    # The file paths are only valid in UNIX systems.
     filepath_elu = './experiment_models/MNISTClassifier_elu.pt'
     filepath_relu = './experiment_models/MNISTClassifier_relu.pt'
 
-    trainModel(model_elu, loss_criterion, optimizer_elu, epochs=epochs, filepath=filepath_elu)
-    trainModel(model_relu, loss_criterion, optimizer_relu, epochs=epochs, filepath=filepath_relu)
+    trainModel(model_elu, loss_criterion, optimizer_elu,
+               epochs=epochs, filepath=filepath_elu)
+    trainModel(model_relu, loss_criterion, optimizer_relu,
+               epochs=epochs, filepath=filepath_relu)

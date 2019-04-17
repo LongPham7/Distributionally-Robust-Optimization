@@ -6,6 +6,7 @@ import numpy as np
 from util_MNIST import retrieveMNISTTrainingData
 from adversarial_attack import FGSM, PGD
 
+
 class AdversarialTraining:
     """
     Base class for adversarial training.
@@ -16,7 +17,7 @@ class AdversarialTraining:
     def __init__(self, model, loss_criterion):
         """
         Initialize instance variables.
-        
+
         Arguments:
             model: neural network to be trained
             loss_criterion: loss function
@@ -26,7 +27,8 @@ class AdversarialTraining:
         self.loss_criterion = loss_criterion
 
         # Use GPU for computation if it is available
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(
+            "cuda:0" if torch.cuda.is_available() else "cpu")
         # Load a model on an appropriate device
         self.model.to(self.device)
         print("The neural network is now loaded on {}.".format(self.device))
@@ -38,7 +40,7 @@ class AdversarialTraining:
         formulation of RO or DRO. This specific method serves as an abstract
         method and hence does not launch an adversarial attack. In a derived
         class, this method needs to be overridden. 
-        
+
         Arguments:
             budget: limit on the size of adversarial perturbations.
                 This normally corresponds to epsilon in Staib and Jegedlka's
@@ -73,12 +75,12 @@ class AdversarialTraining:
             for i, data in enumerate(data_loader, 0):
                 images, labels = data
                 # Input images and labels are loaded by this method.
-                # Hence, they do not need to be loaded by the attack method. 
+                # Hence, they do not need to be loaded by the attack method.
                 images, labels = images.to(self.device), labels.to(self.device)
                 data = (images, labels)
 
                 # However, the attack method should load images_adv on GPU
-                # before returning the output. 
+                # before returning the output.
                 images_adv, labels = self.attack(budget, data, steps=steps_adv)
 
                 optimizer.zero_grad()
@@ -88,6 +90,7 @@ class AdversarialTraining:
                 optimizer.step()
                 if i % 100 == 99:
                     print("Epoch: {}, iteration: {}".format(epoch, i))
+
 
 class ProjectedGradientTraining(AdversarialTraining):
     """
@@ -117,7 +120,7 @@ class ProjectedGradientTraining(AdversarialTraining):
         """
         Launch an FGSM or IGFSM attack. These two are distinguished based on
         the number of iterations for each minibatch. 
-        
+
         Arguments:
             steps: number of iterations in the adversarial attack.
                     If steps = 1, then this attack is equivalent to FGSM;
@@ -125,9 +128,11 @@ class ProjectedGradientTraining(AdversarialTraining):
         """
 
         _, labels = data
-        # The output of generatePerturbation should already be loaded on GPU. 
+        # The output of generatePerturbation should already be loaded on GPU.
         if steps == 1:
-            images_adv = self.fgsm.generatePerturbation(data, budget, minimal=False)
+            images_adv = self.fgsm.generatePerturbation(
+                data, budget, minimal=False)
         else:
-            images_adv = self.pgd.generatePerturbation(data, budget, max_iter=steps)
+            images_adv = self.pgd.generatePerturbation(
+                data, budget, max_iter=steps)
         return images_adv, labels

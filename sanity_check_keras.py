@@ -55,20 +55,25 @@ y_train = to_categorical(y_train, num_classes)
 y_test_original = y_test
 y_test = to_categorical(y_test, num_classes)
 
+
 def trainModel(activation='relu'):
     model = Sequential()
-    model.add(Conv2D(filters=nb_filters, kernel_size=(8,8), strides=(2,2), padding='same', input_shape=input_shape))
+    model.add(Conv2D(filters=nb_filters, kernel_size=(8, 8),
+                     strides=(2, 2), padding='same', input_shape=input_shape))
     model.add(Activation(activation))
-    model.add(Conv2D(filters=nb_filters * 2, kernel_size=(6,6), strides=(2,2), padding='valid'))
+    model.add(Conv2D(filters=nb_filters * 2, kernel_size=(6, 6),
+                     strides=(2, 2), padding='valid'))
     model.add(Activation(activation))
-    model.add(Conv2D(filters=nb_filters * 2, kernel_size=(5,5), strides=(1,1), padding='valid'))
+    model.add(Conv2D(filters=nb_filters * 2, kernel_size=(5, 5),
+                     strides=(1, 1), padding='valid'))
     model.add(Activation(activation))
     model.add(Flatten())
     model.add(Dense(num_classes))
     model.add(Activation('softmax'))
 
     optimizer = Adam(lr=0.001)
-    model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+    model.compile(loss='categorical_crossentropy',
+                  optimizer=optimizer, metrics=['accuracy'])
     model.fit(x_train, y_train,
               batch_size=batch_size,
               epochs=epochs,
@@ -78,11 +83,13 @@ def trainModel(activation='relu'):
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
-    filepath = './experiment_models/KerasMNISTClassifier_{}.h5'.format(activation)
+    filepath = './experiment_models/KerasMNISTClassifier_{}.h5'.format(
+        activation)
     model.save(filepath)
 
+
 def adversarialAccuracy(model):
-    keras_model = KerasModel(model, bounds=(0,1), channel_axis=channel_axis)
+    keras_model = KerasModel(model, bounds=(0, 1), channel_axis=channel_axis)
     criterion = Misclassification()
 
     length = x_test.shape[0]
@@ -94,24 +101,31 @@ def adversarialAccuracy(model):
         #attack = foolbox.attacks.FGSM(keras_model, criterion)
         #image_adv = attack(image, label, epsilons=5, max_epsilon=1.0)
         pgd2 = foolbox.attacks.L2BasicIterativeAttack(keras_model, criterion)
-        image_adv = pgd2(image, label, epsilon=1.0, stepsize=1.0, iterations=1, binary_search=False)
+        image_adv = pgd2(image, label, epsilon=1.0, stepsize=1.0,
+                         iterations=1, binary_search=False)
 
         if image_adv is not None:
-            prediction = np.argmax(keras_model.predictions_and_gradient(image_adv, label)[0])
+            prediction = np.argmax(
+                keras_model.predictions_and_gradient(image_adv, label)[0])
             assert prediction != label
             wrong += 1
-        if i%period == period - 1:
-            print("Adversarial attack success rate: {} / {} = {}".format(wrong, i+1, wrong / (i+1)))
+        if i % period == period - 1:
+            print(
+                "Adversarial attack success rate: {} / {} = {}".format(wrong, i+1, wrong / (i+1)))
             if image_adv is not None:
                 displayImage(image_adv, label)
-                print("Size of perturbation: {}".format(LA.norm(image_adv - image, None)))
+                print("Size of perturbation: {}".format(
+                    LA.norm(image_adv - image, None)))
 
     print("Adversarial error rate: {} / {} = {}".format(wrong, length, wrong / length))
 
+
 def displayImage(image, label):
-    plt.imshow(image.reshape((img_rows, img_cols)), vmin=0.0, vmax=1.0, cmap='gray')
+    plt.imshow(image.reshape((img_rows, img_cols)),
+               vmin=0.0, vmax=1.0, cmap='gray')
     plt.title("Predicted label is {}".format(label))
     plt.show()
+
 
 if __name__ == "__main__":
     # Train Keras neural networks
@@ -126,13 +140,13 @@ if __name__ == "__main__":
     model_elu = load_model(filepath_elu)
 
     # Display the architecture of the neural network
-    #model_relu.summary()
+    # model_relu.summary()
 
     loss_and_metrics = model_relu.evaluate(x_test, y_test, batch_size=128)
     print("Test accuracy of relu: {}".format(loss_and_metrics))
     loss_and_metrics = model_elu.evaluate(x_test, y_test, batch_size=128)
     print("Test accuracy of elu: {}".format(loss_and_metrics))
 
-    # For some unknown reason, this raises an assertion error at the 400-th image. 
+    # For some unknown reason, this raises an assertion error at the 400-th image.
     adversarialAccuracy(model_relu)
     adversarialAccuracy(model_elu)

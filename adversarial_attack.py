@@ -12,6 +12,7 @@ img_rows, img_cols = 28, 28
 This module contains classes for adversarial attacks.
 """
 
+
 class FGSM:
     """
     Class for the fast gradient sign method (FGSM).
@@ -23,10 +24,12 @@ class FGSM:
         self.pytorch_model = wrapModel(model, loss_criterion)
         self.norm = norm
         self.batch_size = batch_size
-        self.attack = FastGradientMethod(self.pytorch_model, batch_size=batch_size)
-        
+        self.attack = FastGradientMethod(
+            self.pytorch_model, batch_size=batch_size)
+
         # Use GPU for computation if it is available
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(
+            "cuda:0" if torch.cuda.is_available() else "cpu")
 
     def generatePerturbation(self, data, budget, minimal=False):
         """
@@ -46,11 +49,13 @@ class FGSM:
         """
 
         images, _ = data
-        images_adv = self.attack.generate(x=images.cpu().numpy(), norm=self.norm, eps=budget, minimal=minimal, eps_step=budget / 50, eps_max=budget, batch_size=self.batch_size)
+        images_adv = self.attack.generate(x=images.cpu().numpy(
+        ), norm=self.norm, eps=budget, minimal=minimal, eps_step=budget / 50, eps_max=budget, batch_size=self.batch_size)
         images_adv = torch.from_numpy(images_adv)
 
-        # The output to be returned should be loaded on an appropriate device. 
+        # The output to be returned should be loaded on an appropriate device.
         return images_adv.to(self.device)
+
 
 class FGSMNative:
     """
@@ -65,9 +70,10 @@ class FGSMNative:
         self.loss_criterion = loss_criterion
         self.norm = norm
         self.batch_size = batch_size
-        
+
         # Use GPU for computation if it is available
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(
+            "cuda:0" if torch.cuda.is_available() else "cpu")
 
     def generatePerturbation(self, data, budget, minimal=False):
         """
@@ -91,7 +97,7 @@ class FGSMNative:
 
         images, labels = data
         images_adv = images.clone().detach().to(self.device)
-        # We will never need to compute a gradient with respect to images_adv. 
+        # We will never need to compute a gradient with respect to images_adv.
         images_adv.requires_grad_(False)
 
         images.requires_grad_(True)
@@ -104,30 +110,34 @@ class FGSMNative:
             direction = images.grad.data.sign()
         elif self.norm == 2:
             flattened_images = images_adv.view(-1, img_rows * img_cols)
-            direction = F.normalize(flattened_images, p=2, dim=1).view(images.size())
+            direction = F.normalize(
+                flattened_images, p=2, dim=1).view(images.size())
         else:
             raise ValueError("The norm is not valid.")
-        
+
         if minimal:
             iterations = 50
             incremental_size = budget / iterations
             minimal_perturbations = torch.zeros(images.size())
             for i in range(iterations):
-                outputs = self.model((images_adv + minimal_perturbations).clamp(0, 1))
+                outputs = self.model(
+                    (images_adv + minimal_perturbations).clamp(0, 1))
                 _, predicted = torch.max(outputs.data, 1)
                 for j in range(labels.size()[0]):
                     # If the current adversarial exampels are correctly
-                    # classified, increase the size of the perturbations. 
+                    # classified, increase the size of the perturbations.
                     if predicted[j] == labels[j]:
-                        minimal_perturbations[j].add_(incremental_size * direction[j])
+                        minimal_perturbations[j].add_(
+                            incremental_size * direction[j])
             images_adv.add_(minimal_perturbations)
         else:
             images_adv.add_(budget * direction)
-        
-        images_adv.clamp_(0,1)
 
-        # The output to be returned should be loaded on an appropriate device. 
+        images_adv.clamp_(0, 1)
+
+        # The output to be returned should be loaded on an appropriate device.
         return images_adv
+
 
 class PGD:
     """
@@ -144,22 +154,26 @@ class PGD:
         self.pytorch_model = wrapModel(model, loss_criterion)
         self.norm = norm
         self.batch_size = batch_size
-        self.attack = ProjectedGradientDescent(self.pytorch_model, norm=norm, random_init=False, batch_size=batch_size)
+        self.attack = ProjectedGradientDescent(
+            self.pytorch_model, norm=norm, random_init=False, batch_size=batch_size)
 
         # Use GPU for computation if it is available
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(
+            "cuda:0" if torch.cuda.is_available() else "cpu")
 
     def generatePerturbation(self, data, budget, max_iter=15):
         images, _ = data
-        
-        # eps_step is not allowed to be larger than budget according to the 
-        # documentation of ART. 
+
+        # eps_step is not allowed to be larger than budget according to the
+        # documentation of ART.
         eps_step = budget / 5
-        images_adv = self.attack.generate(x=images.cpu().numpy(), norm=self.norm, eps=budget, eps_step=eps_step, max_iter=max_iter, batch_size=self.batch_size)
+        images_adv = self.attack.generate(x=images.cpu().numpy(
+        ), norm=self.norm, eps=budget, eps_step=eps_step, max_iter=max_iter, batch_size=self.batch_size)
         images_adv = torch.from_numpy(images_adv)
 
-        # The output to be returned should be loaded on an appropriate device. 
+        # The output to be returned should be loaded on an appropriate device.
         return images_adv.to(self.device)
+
 
 if __name__ == "__main__":
     # Load a simple neural network
@@ -167,7 +181,7 @@ if __name__ == "__main__":
     loadModel(model, "./ERM_models/SimpleModel.pt")
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model.to(device) # Load the neural network on GPU if it is available
+    model.to(device)  # Load the neural network on GPU if it is available
     print("The neural network is now loaded on {}.".format(device))
 
     # Create an object for PGD
@@ -189,7 +203,7 @@ if __name__ == "__main__":
         # images_adv is already loaded on GPU by generatePerturbation
         images_adv = pgd.generatePerturbation(data, epsilon)
         with torch.no_grad():
-            outputs =  model(images_adv)
+            outputs = model(images_adv)
         _, predicted = torch.max(outputs.data, 1)
         total += labels.size(0)
         correct += (predicted == labels).sum().item()

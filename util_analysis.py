@@ -6,6 +6,7 @@ from util_MNIST import retrieveMNISTTestData
 from util_model import loadModel, evaluateModel
 from adversarial_attack import FGSM, PGD, FGSMNative
 
+
 class Analysis:
 
     """
@@ -15,9 +16,10 @@ class Analysis:
     def __init__(self, model, filepath):
         self.model = loadModel(model, filepath)
         #self.model = loadModel(model=None, filepath=filepath)
-        
+
         # Use GPU for computation if it is available
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(
+            "cuda:0" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         print("The model is now loaded on {}.".format(self.device))
 
@@ -41,10 +43,12 @@ class Analysis:
         test_loader = retrieveMNISTTestData(batch_size=batch_size)
         criterion = nn.CrossEntropyLoss()
         if adversarial_type == "FGSM":
-            adversarial_module = FGSM(self.model, criterion, norm=norm, batch_size=batch_size)
+            adversarial_module = FGSM(
+                self.model, criterion, norm=norm, batch_size=batch_size)
             #adversarial_module = FGSMNative(self.model, criterion, norm=norm, batch_size=batch_size)
         elif adversarial_type == 'PGD':
-            adversarial_module = PGD(self.model, criterion, norm=norm, batch_size=batch_size)
+            adversarial_module = PGD(
+                self.model, criterion, norm=norm, batch_size=batch_size)
         else:
             raise ValueError("The type of adversarial attack is not valid.")
 
@@ -59,15 +63,17 @@ class Analysis:
             data = (images, labels)
 
             # images_adv is already loaded on GPU by generatePerturbation.
-            # Also, if FGSM is used, we have minimal=False by default. 
+            # Also, if FGSM is used, we have minimal=False by default.
             if adversarial_type == "FGSM":
-                images_adv = adversarial_module.generatePerturbation(data, budget)
+                images_adv = adversarial_module.generatePerturbation(
+                    data, budget)
             else:
-                images_adv = adversarial_module.generatePerturbation(data, budget, max_iter=max_iter)
+                images_adv = adversarial_module.generatePerturbation(
+                    data, budget, max_iter=max_iter)
             with torch.no_grad():
                 softmax = nn.Softmax(dim=1)
-                outputs =  softmax(self.model(images_adv))
-            
+                outputs = softmax(self.model(images_adv))
+
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
@@ -89,7 +95,7 @@ class Analysis:
         #fgsm = FGSMNative(self.model, criterion, norm=norm, batch_size=batch_size)
 
         # Craft "minimal" adversarial examples with FGSM
-        minimal_perturbations = [] # List of minimal perturbations
+        minimal_perturbations = []  # List of minimal perturbations
         period = 100
         for i, data in enumerate(test_loader):
             if i == period:
@@ -98,10 +104,12 @@ class Analysis:
             images, labels = images.to(self.device), labels.to(self.device)
 
             # images_adv is already loaded on GPU by generatePerturbation.
-            images_adv = fgsm.generatePerturbation(data, budget=budget, minimal=True)
-            
+            images_adv = fgsm.generatePerturbation(
+                data, budget=budget, minimal=True)
+
             for j in range(images.size(0)):
-                minimal_perturbation = torch.dist(images[j], images_adv[j], p=norm).item()
+                minimal_perturbation = torch.dist(
+                    images[j], images_adv[j], p=norm).item()
                 minimal_perturbations.append(minimal_perturbation)
         return minimal_perturbations
 
@@ -110,12 +118,13 @@ class Analysis:
         Display a histogram (for minimal perturbation size in FGSM).
         """
 
-        plt.hist(minimal_perturbations, bins=50, range=(0,1))
+        plt.hist(minimal_perturbations, bins=50, range=(0, 1))
         plt.ylabel("Frequency")
         plt.xlabel("Minimal perturbation")
         if title is not None:
             plt.title(title)
         plt.show()
+
 
 class AnalysisMulitpleModels:
 
@@ -126,7 +135,7 @@ class AnalysisMulitpleModels:
     def __init__(self):
         pass
 
-    def printBasicResult(self, analyzer, budget_two, budget_inf):     
+    def printBasicResult(self, analyzer, budget_two, budget_inf):
         """
         Print out (i) the accuracy of a neural network on MNIST and 
         (ii) its robustness to FGSM and PGD.
@@ -134,16 +143,24 @@ class AnalysisMulitpleModels:
 
         correct, total = analyzer.testAccuracy()
         print("Test accuracy: {} / {} = {}".format(correct, total, correct / total))
-        
-        correct, total = analyzer.adversarialAccuracy('FGSM', budget=budget_two, norm=2)
-        print("Adversarial accuracy with respect to FGSM-2: {} / {} = {}".format(correct, total, correct / total))
-        correct, total = analyzer.adversarialAccuracy('FGSM', budget=budget_inf, norm=np.inf)
-        print("Adversarial accuracy with respect to FGSM-inf: {} / {} = {}".format(correct, total, correct / total))
-        
-        correct, total = analyzer.adversarialAccuracy('PGD', budget=budget_two, norm=2)
-        print("Adversarial accuracy with respect to PGD-2: {} / {} = {}".format(correct, total, correct / total))
-        correct, total = analyzer.adversarialAccuracy('PGD', budget=budget_inf, norm=np.inf)
-        print("Adversarial accuracy with respect to PGD-inf: {} / {} = {}".format(correct, total, correct / total))
+
+        correct, total = analyzer.adversarialAccuracy(
+            'FGSM', budget=budget_two, norm=2)
+        print("Adversarial accuracy with respect to FGSM-2: {} / {} = {}".format(correct,
+                                                                                 total, correct / total))
+        correct, total = analyzer.adversarialAccuracy(
+            'FGSM', budget=budget_inf, norm=np.inf)
+        print("Adversarial accuracy with respect to FGSM-inf: {} / {} = {}".format(
+            correct, total, correct / total))
+
+        correct, total = analyzer.adversarialAccuracy(
+            'PGD', budget=budget_two, norm=2)
+        print("Adversarial accuracy with respect to PGD-2: {} / {} = {}".format(correct,
+                                                                                total, correct / total))
+        correct, total = analyzer.adversarialAccuracy(
+            'PGD', budget=budget_inf, norm=np.inf)
+        print("Adversarial accuracy with respect to PGD-inf: {} / {} = {}".format(
+            correct, total, correct / total))
 
     def plotPerturbationLineGraph(self, ax, analyzers, labels, adversarial_type, budget, norm, bins, record_file):
         """
@@ -156,16 +173,17 @@ class AnalysisMulitpleModels:
             record_file: file object to be used to record the adversarial
                 attack success rates
         """
-        
+
         length = len(analyzers)
         results = [[] for i in range(length)]
         increment_size = budget / bins if bins != 0 else None
         perturbations = [i * increment_size for i in range(bins+1)]
         assert length <= 10
-        cmap = plt.get_cmap("tab10") # Colours of lines in a graph; we have ten colours only. 
+        # Colours of lines in a graph; we have ten colours only.
+        cmap = plt.get_cmap("tab10")
 
         # Evaluate the test accuracy; i.e. robustness against adverarial
-        # attacks with the budget of 0. 
+        # attacks with the budget of 0.
         for j in range(length):
             analyzer = analyzers[j]
             correct, total = analyzer.testAccuracy()
@@ -173,11 +191,12 @@ class AnalysisMulitpleModels:
         print("0-th iteration complete")
 
         # Evaluate the robustness against adversarial attacks with non-zero
-        # budget. 
+        # budget.
         for i in range(bins):
             for j in range(length):
                 analyzer = analyzers[j]
-                correct, total = analyzer.adversarialAccuracy(adversarial_type, increment_size * (i+1), norm)
+                correct, total = analyzer.adversarialAccuracy(
+                    adversarial_type, increment_size * (i+1), norm)
                 results[j].append(1 - correct / total)
             print("{}-th iteration complete".format(i+1))
 
@@ -185,17 +204,21 @@ class AnalysisMulitpleModels:
         if record_file is not None:
             for i in range(length):
                 analyzer = analyzers[i]
-                record_file.write("Adversarial attack on {}\n".format(analyzer.filepath))
-                record_file.write("Attack type: {}; Norm: {}\n".format(adversarial_type, norm))
-                record_file.write("Budget: {}; Bins: {}\n".format(budget, bins))
+                record_file.write(
+                    "Adversarial attack on {}\n".format(analyzer.filepath))
+                record_file.write(
+                    "Attack type: {}; Norm: {}\n".format(adversarial_type, norm))
+                record_file.write(
+                    "Budget: {}; Bins: {}\n".format(budget, bins))
                 zipped_reuslt = list(zip(perturbations, results[i]))
                 record_file.write(str(zipped_reuslt) + "\n\n")
 
         for i in range(length):
-            ax.plot(perturbations, results[i], color=cmap(i), linestyle='-', label=labels[i])
+            ax.plot(perturbations, results[i], color=cmap(
+                i), linestyle='-', label=labels[i])
         ax.legend()
         ax.set_xlabel("Perturbation size")
         ax.set_ylabel("Adversarial attack success rate")
         ax.set_xlim(0, budget)
-        #ax.set_ylim(0, 1) # This is only valid for the linear y-axis scale. 
+        # ax.set_ylim(0, 1) # This is only valid for the linear y-axis scale.
         ax.set_yscale('log')

@@ -14,11 +14,13 @@ https://pytorch.org/tutorials/beginner/fgsm_tutorial.html.
 """
 
 epsilons = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-use_cuda = True # If GPU is available, choose GPU over CPU. 
+use_cuda = True  # If GPU is available, choose GPU over CPU.
 
 # FGSM attack code
+
+
 def fgsm_attack(image, epsilon, data_grad):
-    
+
     # Collect the element-wise sign of the data gradient
     sign_data_grad = data_grad.sign()
     # Create the perturbed image by adjusting each pixel of the input image
@@ -27,6 +29,7 @@ def fgsm_attack(image, epsilon, data_grad):
     perturbed_image = torch.clamp(perturbed_image, 0, 1)
     # Return the perturbed image
     return perturbed_image
+
 
 def test(model, device, test_loader, epsilon):
 
@@ -43,7 +46,8 @@ def test(model, device, test_loader, epsilon):
 
         # Forward pass the data through the model
         output = model(data)
-        init_pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
+        # get the index of the max log-probability
+        init_pred = output.max(1, keepdim=True)[1]
 
         # If the initial prediction is wrong, dont bother attacking, just move on
         if init_pred.item() != target.item():
@@ -68,13 +72,16 @@ def test(model, device, test_loader, epsilon):
         output = model(perturbed_data)
 
         # Check for success
-        final_pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
+        # get the index of the max log-probability
+        final_pred = output.max(1, keepdim=True)[1]
         if final_pred.item() == target.item():
             correct += 1
 
     # Calculate final accuracy for this epsilon
     final_acc = correct/float(len(test_loader))
-    print("Epsilon: {}\tTest Accuracy = {} / {} = {}".format(epsilon, correct, len(test_loader), final_acc))
+    print("Epsilon: {}\tTest Accuracy = {} / {} = {}".format(epsilon,
+                                                             correct, len(test_loader), final_acc))
+
 
 if __name__ == "__main__":
     # MNIST Test dataset and dataloader declaration
@@ -82,7 +89,8 @@ if __name__ == "__main__":
 
     # Define what device we are using
     print("CUDA Available: ", torch.cuda.is_available())
-    device = torch.device("cuda" if (use_cuda and torch.cuda.is_available()) else "cpu")
+    device = torch.device("cuda" if (
+        use_cuda and torch.cuda.is_available()) else "cpu")
 
     # Initialize the network
     filepath_relu = "./experiment_models/MNISTClassifier_relu.pt"
