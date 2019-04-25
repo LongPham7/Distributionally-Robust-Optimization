@@ -13,8 +13,8 @@ class Analysis:
     Class for the robustness analysis on a single neural network.
     """
 
-    def __init__(self, model, filepath):
-        self.model = loadModel(model, filepath)
+    def __init__(self, skeleton_model, filepath):
+        self.model = loadModel(skeleton_model, filepath)
         #self.model = loadModel(model=None, filepath=filepath)
 
         # Use GPU for computation if it is available

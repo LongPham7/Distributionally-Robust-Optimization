@@ -46,28 +46,6 @@ def retrieveMNISTTestData(batch_size=128, shuffle=False):
     return test_loader
 
 
-def randomStart(center, epsilon):
-    """
-    Select a random point that is on the perimeter of a L2-ball. 
-    This point is where the L2-norm-ball constraint is tight. 
-
-    Arguments:
-        origin: origin of the L2-ball
-        epsilon: radisu of the L2-ball
-    Returns:
-        a random point on the perimeter of the specified L2-ball
-    """
-
-    # Use GPU for computation if it is available
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-    direction = torch.rand(center.size()) * 2 - 1
-    direction = direction.to(device)
-    length = torch.norm(direction, p=2).item()
-    center.data.add_(epsilon / length * direction)
-    center.data.clamp_(0, 1)
-
-
 def displayImage(image, label):
     """
     Display an image of a digit from MNIST.

@@ -3,9 +3,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from util_MNIST import randomStart, retrieveMNISTTrainingData
+from util_MNIST import retrieveMNISTTrainingData
 from util_model import SimpleNeuralNet, MNISTClassifier
-from adversarial_training import AdversarialTraining, ProjectedGradientTraining
+from util_adversarial_training import AdversarialTraining
 
 
 class ProjetcedDRO(AdversarialTraining):
@@ -20,6 +20,25 @@ class ProjetcedDRO(AdversarialTraining):
         super().__init__(model, loss_criterion)
 
     def attack(self, budget, data, steps=15):
+            
+        def randomStart(center, epsilon):
+            """
+            Select a random point that is on the perimeter of a L2-ball. 
+            This point is where the L2-norm-ball constraint is tight. 
+
+            Arguments:
+                origin: origin of the L2-ball
+                epsilon: radisu of the L2-ball
+            Returns:
+                a random point on the perimeter of the specified L2-ball
+            """
+
+            direction = torch.rand(center.size()) * 2 - 1
+            direction = direction.to(self.device)
+            length = torch.norm(direction, p=2).item()
+            center.data.add_(epsilon / length * direction)
+            center.data.clamp_(0, 1)
+
         lr = 0.001
         images, labels = data
         # Load an initialized batch of adversarial examples on a device

@@ -12,7 +12,7 @@ This module contains the seven loss functions listed in Carlini and Wagneer
 """
 
 
-def f_1(outputs, labels, device=None):
+def f_1(outputs, labels):
     return F.cross_entropy(outputs, labels)
 
 
@@ -34,10 +34,12 @@ def f_4(outputs, labels):
 
 
 def f_5(outputs, labels):
+    # Note that in the original version, the base of e is used instead of 2. 
+
     outputs = F.softmax(outputs, dim=1)
     reference_outputs = torch.gather(
         outputs, 1, labels.view(-1, 1).long()).view(-1)
-    return torch.mean(torch.log2(2 - 2 * reference_outputs))
+    return torch.mean(torch.log2(2.125 - 2 * reference_outputs))
 
 
 def f_6(outputs, labels):
@@ -86,7 +88,7 @@ def trainModelLoss(dro_type, epochs, steps_adv, budget, activation, batch_size, 
     filepath = folderpath + "{}_DRO_activation={}_epsilon={}_loss={}.pt".format(
         dro_type, activation, budget, loss_criterion.__name__)
     torch.save(model.state_dict(), filepath)
-    print("A neural network adversarially trained using {} is now saved at {}.".format(
+    print("A neural network adversarially trained using {} now saved at: {}".format(
         dro_type, filepath))
 
 
@@ -104,13 +106,13 @@ if __name__ == "__main__":
     def cost_function(x, y): return torch.dist(x, y, p=2) ** 2
 
     for loss_criterion in loss_criterions:
-        #trainModelLoss("FW", epochs, steps_adv, epsilon, "relu", batch_size, loss_criterion)
-        #trainModelLoss("PGD", epochs, steps_adv, epsilon, "elu", batch_size, loss_criterion)
+        trainModelLoss("FW", epochs, steps_adv, epsilon, "relu", batch_size, loss_criterion)
+        trainModelLoss("PGD", epochs, steps_adv, epsilon, "elu", batch_size, loss_criterion)
         trainModelLoss("Lag", epochs, steps_adv, optimal_gamma, "relu",
                        batch_size, loss_criterion, cost_function=cost_function)
-
+  
     """
-    data_loader = retrieveMNISTTrainingData(batch_size=1, shuffle=False)
+    data_loader = retrieveMNISTTrainingData(batch_size=1, shuffle=True)
     iterator = iter(data_loader)
     images, labels = iterator.next()
 
@@ -118,9 +120,19 @@ if __name__ == "__main__":
     #print("images: {}".format(images))
     print("labels: {}".format(labels))
 
-    model = MNISTClassifier()
-    loss_criterion = f_6
-    outputs = F.softmax(model(images), dim=1)
-    print("softmax outputs: {}".format(outputs))
-    print("loss: {}".format(loss_criterion(outputs, labels)))
+    from util_model import loadModel
+
+    dro_type = "PGD"
+    activation = "elu"
+    budget = 0.1
+    loss_criterion = f_5
+    folderpath = "./Loss_models/"
+    filepath = folderpath + "{}_DRO_activation={}_epsilon={}_loss={}.pt".format(dro_type, activation, budget, loss_criterion.__name__)
+    model_skeleton = MNISTClassifier(activation=activation)
+    model = loadModel(model_skeleton, filepath)
+    raw_outputs = model(images)
+    outputs = F.softmax(raw_outputs, dim=1)
+    print("Raw output: {}".format(raw_outputs))
+    print("Softmax outputs: {}".format(outputs))
+    print("Loss: {}".format(loss_criterion(raw_outputs, labels)))
     """
