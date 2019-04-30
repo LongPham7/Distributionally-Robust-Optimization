@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from art.classifiers import PyTorchClassifier
 from util_MNIST import retrieveMNISTTrainingData, retrieveMNISTTestData, displayImage
 
 img_rows, img_cols = 28, 28
@@ -91,17 +90,6 @@ class MNISTClassifier(nn.Module):
         return num_features
 
 
-def wrapModel(model, loss_criterion):
-    """
-    Wrap a PyTorch model in the frametwork of ART (Adversarial Robustness
-    Toolbox) by IBM.
-    """
-
-    optimizer = optim.Adam(model.parameters())
-    input_shape = (1, img_rows, img_cols)
-    return PyTorchClassifier((0, 1), model, loss_criterion, optimizer, input_shape, nb_classes=10)
-
-
 def trainModel(model, loss_criterion, optimizer, epochs=25, filepath=None):
     # USe GPU for computation if it is available.
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -154,7 +142,7 @@ def loadModel(model, filepath):
     return model
 
 
-def evaluateModel(model):
+def evaluateModelAccuracy(model):
     # Use GPU for computation if it is available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -184,24 +172,29 @@ def evaluateModelSingleInput(model, image):
 
 
 if __name__ == "__main__":
-    epochs = 25
-    # Note that nn.CrosEntropyLoss combines nn.LogSoftmax and nn.NLLLoss.
-    loss_criterion = nn.CrossEntropyLoss()
-    learning_rate = 0.001
 
-    model_elu = MNISTClassifier(activation='elu')
-    optimizer_elu = optim.Adam(model_elu.parameters(), lr=learning_rate)
-    #optimizer_elu = optim.SGD(model_elu.parameters(), lr=learning_rate)
+    def experiment(activation, optimizer_type):
+        epochs = 25
+        # Note that nn.CrosEntropyLoss combines nn.LogSoftmax and nn.NLLLoss.
+        loss_criterion = nn.CrossEntropyLoss()
+        learning_rate = 0.001
 
-    model_relu = MNISTClassifier(activation='relu')
-    optimizer_relu = optim.Adam(model_relu.parameters(), lr=learning_rate)
-    #optimizer_relu = optim.SGD(model_relu.parameters(), lr=learning_rate)
+        model = MNISTClassifier(activation=activation)
+        if optimizer_type == "adam":
+            optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        elif optimizer_type == "sgd":
+            optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+        else:
+            raise ValueError("The optimizer type is not recognized.")
+        
+        # The file paths are only valid in UNIX systems.
+        folderpath = "./ERM_models/"
+        filename = "MNISTClassifier_{}_{}".format(optimizer_type, activation)
 
-    # The file paths are only valid in UNIX systems.
-    filepath_elu = './experiment_models/MNISTClassifier_elu.pt'
-    filepath_relu = './experiment_models/MNISTClassifier_relu.pt'
+        trainModel(model, loss_criterion, optimizer,
+           epochs=epochs, filepath=folderpath + filename)
 
-    trainModel(model_elu, loss_criterion, optimizer_elu,
-               epochs=epochs, filepath=filepath_elu)
-    trainModel(model_relu, loss_criterion, optimizer_relu,
-               epochs=epochs, filepath=filepath_relu)
+    experiment("elu", "adam")
+    experiment("relu", "adam")
+    experiment("elu", "sgd")
+    experiment("relu", "sgd")

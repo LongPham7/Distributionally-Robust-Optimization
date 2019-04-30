@@ -3,8 +3,8 @@ import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
 from util_MNIST import retrieveMNISTTestData
-from util_model import loadModel, evaluateModel
-from adversarial_attack import FGSM, PGD, FGSMNative
+from util_model import loadModel, evaluateModelAccuracy
+from adversarial_attack import FGSM, PGD, FGSMNative, DistributionalPGD
 
 
 class Analysis:
@@ -15,7 +15,6 @@ class Analysis:
 
     def __init__(self, skeleton_model, filepath):
         self.model = loadModel(skeleton_model, filepath)
-        #self.model = loadModel(model=None, filepath=filepath)
 
         # Use GPU for computation if it is available
         self.device = torch.device(
@@ -30,7 +29,7 @@ class Analysis:
         Evaluate the accuracy of a neural network on the MNIST test data.
         """
 
-        return evaluateModel(self.model)
+        return evaluateModelAccuracy(self.model)
 
     def adversarialAccuracy(self, adversarial_type, budget, norm):
         """
@@ -38,17 +37,20 @@ class Analysis:
         examples. 
         """
 
-        batch_size = 128
+        batch_size = 512 if adversarial_type == "distributional_PGD" else 128
         max_iter = 15
         test_loader = retrieveMNISTTestData(batch_size=batch_size)
         criterion = nn.CrossEntropyLoss()
         if adversarial_type == "FGSM":
             adversarial_module = FGSM(
                 self.model, criterion, norm=norm, batch_size=batch_size)
-            #adversarial_module = FGSMNative(self.model, criterion, norm=norm, batch_size=batch_size)
+            #adversarial_module = FGSMNative(
+            #   self.model, criterion, norm=norm, batch_size=batch_size)
         elif adversarial_type == 'PGD':
             adversarial_module = PGD(
                 self.model, criterion, norm=norm, batch_size=batch_size)
+        elif adversarial_type == "distributional_PGD":
+            adversarial_module = DistributionalPGD(self.model, criterion)
         else:
             raise ValueError("The type of adversarial attack is not valid.")
 
@@ -68,6 +70,7 @@ class Analysis:
                 images_adv = adversarial_module.generatePerturbation(
                     data, budget)
             else:
+                # For pointwise and distributional PGD attacks
                 images_adv = adversarial_module.generatePerturbation(
                     data, budget, max_iter=max_iter)
             with torch.no_grad():
@@ -78,52 +81,6 @@ class Analysis:
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
         return correct, total
-
-    def fgsmPerturbationDistribution(self, budget, norm):
-        """
-        Compute the distribution of the minimal size of perturbations that are
-        required to trick the neural network into misclassification. 
-
-        This utilises the functionality of computing minimal perturbations 
-        provided by the ART library. 
-        """
-
-        batch_size = 128
-        test_loader = retrieveMNISTTestData(batch_size=batch_size)
-        criterion = nn.CrossEntropyLoss()
-        fgsm = FGSM(self.model, criterion, norm=norm, batch_size=batch_size)
-        #fgsm = FGSMNative(self.model, criterion, norm=norm, batch_size=batch_size)
-
-        # Craft "minimal" adversarial examples with FGSM
-        minimal_perturbations = []  # List of minimal perturbations
-        period = 100
-        for i, data in enumerate(test_loader):
-            if i == period:
-                break
-            images, labels = data
-            images, labels = images.to(self.device), labels.to(self.device)
-
-            # images_adv is already loaded on GPU by generatePerturbation.
-            images_adv = fgsm.generatePerturbation(
-                data, budget=budget, minimal=True)
-
-            for j in range(images.size(0)):
-                minimal_perturbation = torch.dist(
-                    images[j], images_adv[j], p=norm).item()
-                minimal_perturbations.append(minimal_perturbation)
-        return minimal_perturbations
-
-    def displayHistogram(self, minimal_perturbations, title=None):
-        """
-        Display a histogram (for minimal perturbation size in FGSM).
-        """
-
-        plt.hist(minimal_perturbations, bins=50, range=(0, 1))
-        plt.ylabel("Frequency")
-        plt.xlabel("Minimal perturbation")
-        if title is not None:
-            plt.title(title)
-        plt.show()
 
 
 class AnalysisMulitpleModels:
@@ -179,11 +136,11 @@ class AnalysisMulitpleModels:
         increment_size = budget / bins if bins != 0 else None
         perturbations = [i * increment_size for i in range(bins+1)]
         assert length <= 10
-        # Colours of lines in a graph; we have ten colours only.
+        # Colours of lines in a graph; this colour map only has ten colours.
         cmap = plt.get_cmap("tab10")
 
         # Evaluate the test accuracy; i.e. robustness against adverarial
-        # attacks with the budget of 0.
+        # attacks with the adversarial budget of 0.
         for j in range(length):
             analyzer = analyzers[j]
             correct, total = analyzer.testAccuracy()
@@ -200,7 +157,7 @@ class AnalysisMulitpleModels:
                 results[j].append(1 - correct / total)
             print("{}-th iteration complete".format(i+1))
 
-        # Record the results in a file if it is given
+        # Record the results in a log if required
         if record_file is not None:
             for i in range(length):
                 analyzer = analyzers[i]
@@ -220,5 +177,4 @@ class AnalysisMulitpleModels:
         ax.set_xlabel("Perturbation size")
         ax.set_ylabel("Adversarial attack success rate")
         ax.set_xlim(0, budget)
-        # ax.set_ylim(0, 1) # This is only valid for the linear y-axis scale.
         ax.set_yscale('log')

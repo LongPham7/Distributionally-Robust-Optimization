@@ -3,8 +3,10 @@ import torch
 from torch import optim, nn
 import torch.nn.functional as F
 from util_MNIST import retrieveMNISTTestData
-from util_model import SimpleNeuralNet, loadModel, wrapModel
+from util_model import SimpleNeuralNet, loadModel
 from art.attacks import FastGradientMethod, ProjectedGradientDescent
+from art.classifiers import PyTorchClassifier
+from adversarial_attack_DRO import ProjetcedDRO
 
 img_rows, img_cols = 28, 28
 
@@ -12,6 +14,15 @@ img_rows, img_cols = 28, 28
 This module contains classes for adversarial attacks.
 """
 
+def wrapModel(model, loss_criterion):
+    """
+    Wrap a PyTorch model in the frametwork of ART (Adversarial Robustness
+    Toolbox) by IBM.
+    """
+
+    optimizer = optim.Adam(model.parameters())
+    input_shape = (1, img_rows, img_cols)
+    return PyTorchClassifier((0, 1), model, loss_criterion, optimizer, input_shape, nb_classes=10)
 
 class FGSM:
     """
@@ -21,11 +32,11 @@ class FGSM:
     """
 
     def __init__(self, model, loss_criterion, norm, batch_size=128):
-        self.pytorch_model = wrapModel(model, loss_criterion)
+        self.wrapped_pytorch_model = wrapModel(model, loss_criterion)
         self.norm = norm
         self.batch_size = batch_size
         self.attack = FastGradientMethod(
-            self.pytorch_model, batch_size=batch_size)
+            self.wrapped_pytorch_model, batch_size=batch_size)
 
         # Use GPU for computation if it is available
         self.device = torch.device(
@@ -61,8 +72,9 @@ class FGSMNative:
     """
     Class for manually implemented FGSM, unlike the above FGSM class in this
     module. For some unknown reason, this class produces a different
-    performance in adversarial attacks than the FGSM class. The performance of
-    FGSMNative is better than that of FGSM only in some cases. 
+    performance in adversarial attacks from the FGSM class. The performance of
+    FGSMNative is better than that of FGSM only in some cases (and not in all
+    cases). Also, the difference is not significant. 
     """
 
     def __init__(self, model, loss_criterion, norm=np.inf, batch_size=128):
@@ -141,7 +153,7 @@ class FGSMNative:
 
 class PGD:
     """
-    Module for adversarial attacks based on projected gradient descent (PGD).
+    Class for adversarial attacks based on projected gradient descent (PGD).
     The implementation of PGD in ART executes projection on a feasible region
     after each iteration. However, random restrating is not used in this
     implementation. Not using radom restarting is the difference between the
@@ -151,11 +163,11 @@ class PGD:
     """
 
     def __init__(self, model, loss_criterion, norm=np.inf, batch_size=128):
-        self.pytorch_model = wrapModel(model, loss_criterion)
+        self.wrapped_pytorch_model = wrapModel(model, loss_criterion)
         self.norm = norm
         self.batch_size = batch_size
         self.attack = ProjectedGradientDescent(
-            self.pytorch_model, norm=norm, random_init=False, batch_size=batch_size)
+            self.wrapped_pytorch_model, norm=norm, random_init=False, batch_size=batch_size)
 
         # Use GPU for computation if it is available
         self.device = torch.device(
@@ -175,6 +187,27 @@ class PGD:
         return images_adv.to(self.device)
 
 
+class DistributionalPGD:
+    """
+    Class for a PGD-based distributional adversarial attack (as opposed to pointwise
+    adversarial attacks such as FGSM and PGD). 
+    
+    By default, we use the 2-Wasserstein distance (for the distributional distance)
+    and the L-2 norm (for the underlying pointwise distance). 
+    """
+
+    def __init__(self, model, loss_criterion):
+        self.model = model
+        self.loss_criterion = loss_criterion
+        self.training_module = ProjetcedDRO(model, loss_criterion)
+
+    def generatePerturbation(self, data, budget, max_iter=15):
+        images_adv, _ = self.training_module.attack(budget, data, steps=max_iter)
+        
+        # The output is already loaded on an appropriate device (i.e. GPU if available). 
+        return images_adv
+
+
 if __name__ == "__main__":
     # Load a simple neural network
     model = SimpleNeuralNet()
@@ -188,7 +221,7 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss()
     batch_size = 128
     pgd = PGD(model, criterion, batch_size=batch_size)
-    pytorch_model = pgd.pytorch_model
+    pytorch_model = pgd.wrapped_pytorch_model
 
     # Read MNIST dataset
     test_loader = retrieveMNISTTestData(batch_size=1024)

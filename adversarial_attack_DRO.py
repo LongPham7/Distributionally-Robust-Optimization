@@ -39,7 +39,7 @@ class ProjetcedDRO(AdversarialTraining):
             center.data.add_(epsilon / length * direction)
             center.data.clamp_(0, 1)
 
-        lr = 0.001
+        lr = budget / 5
         images, labels = data
         # Load an initialized batch of adversarial examples on a device
         images_adv = images.clone().detach().to(self.device)

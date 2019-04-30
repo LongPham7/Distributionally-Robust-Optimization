@@ -4,7 +4,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 from util_MNIST import retrieveMNISTTrainingData
-from adversarial_attack import FGSM, PGD
 
 
 class AdversarialTraining:

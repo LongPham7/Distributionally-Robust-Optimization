@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from adversarial_attack import FGSM, PGD, FGSMNative
 from util_model import MNISTClassifier
 from util_analysis import Analysis, AnalysisMulitpleModels
 
@@ -22,57 +21,16 @@ class ERMModelsAnalysis(AnalysisMulitpleModels):
         model_sgd_elu = MNISTClassifier(activation='elu')
 
         # These file paths only work on UNIX.
-        filepath_relu = "./ERM_models/MNISTClassifier_relu.pt"
-        filepath_elu = "./ERM_models/MNISTClassifier_elu.pt"
-        filepath_sgd_relu = "./ERM_models/MNISTClassifier_SGD_relu.pt"
-        filepath_sgd_elu = "./ERM_models/MNISTClassifier_SGD_elu.pt"
+        folderpath = "./ERM_models/"
+        filename_relu = "MNISTClassifier_adam_relu.pt"
+        filename_elu = "MNISTClassifier_adam_elu.pt"
+        filename_sgd_relu = "MNISTClassifier_sgd_relu.pt"
+        filename_sgd_elu = "MNISTClassifier_sgd_elu.pt"
 
-        self.analyzer_relu = Analysis(model_relu, filepath_relu)
-        self.analyzer_elu = Analysis(model_elu, filepath_elu)
-        self.analyzer_sgd_relu = Analysis(model_sgd_relu, filepath_sgd_relu)
-        self.analyzer_sgd_elu = Analysis(model_sgd_elu, filepath_sgd_elu)
-
-    def producePerturbationHistorgram(self, analyzer, filename):
-        """
-        Produce a histogram of the minimal size of perturbations. 
-        """
-
-        budget_two = 3.0
-        budget_inf = 1.0
-
-        # Note that those adversarial examples that are corectly classified
-        # are not pruned out.
-        # Also, note that they do not necesarily have the minimal perturbation
-        # size that is euqal to budget; i.e. the minimal perturbation size is
-        # not maximal. This is bizarre.
-        minimal_perturbations_two = analyzer.fgsmPerturbationDistribution(
-            budget=budget_two, norm=2)
-        minimal_perturbations_inf = analyzer.fgsmPerturbationDistribution(
-            budget=budget_inf, norm=np.inf)
-
-        bins = 20
-        fig, (ax0, ax1) = plt.subplots(1, 2)
-        n, _, _ = ax0.hist(minimal_perturbations_two,
-                           bins=bins, range=(0, budget_two))
-        ax0.set_xlabel("Minimal perturbation")
-        ax0.set_ylabel("Frequency")
-        ax0.set_title("FGSM-2")
-        print("Distribution in FGSM-2: {}".format(n))
-
-        n, _, _ = ax1.hist(minimal_perturbations_inf,
-                           bins=bins, range=(0, budget_inf))
-        ax1.set_xlabel("Minimal perturbation")
-        ax1.set_ylabel("Frequency")
-        ax1.set_title("FGSM-inf")
-        print("Distribution in FGSM-inf: {}".format(n))
-
-        plt.tight_layout()
-
-        # plt.show()
-        filepath = "./images/" + filename
-        plt.savefig(filepath, dpi=300)
-        print("Histogram now saved at {}".format(filepath))
-        plt.close()
+        self.analyzer_relu = Analysis(model_relu, folderpath + filename_relu)
+        self.analyzer_elu = Analysis(model_elu, folderpath + filename_elu)
+        self.analyzer_sgd_relu = Analysis(model_sgd_relu, folderpath + filename_sgd_relu)
+        self.analyzer_sgd_elu = Analysis(model_sgd_elu, folderpath + filename_sgd_elu)
 
     def plotERMModels(self, budget, norm, bins):
         """
@@ -205,7 +163,12 @@ class DROModelsAnalysis(AnalysisMulitpleModels):
     def compareLagDROModels(self, budget_two, budget_inf, bins):
         """
         Compare the robustness of those neural networks trained by WRM with
-        different values of gamma by using four types of adversarial attacks.
+        different values of gamma by using five types of adversarial attacks:
+        - FGSM with the L-inf norm
+        - FGSM with the L-2 norm
+        - pointwise PGD with the L-inf norm
+        - pointwise PGD with the L-2 norm
+        - distributional PGD. 
         """
 
         self.plotLagDROModels("FGSM", budget_inf, np.inf, bins)
@@ -213,6 +176,8 @@ class DROModelsAnalysis(AnalysisMulitpleModels):
 
         self.plotLagDROModels("PGD", budget_inf, np.inf, bins)
         self.plotLagDROModels("PGD", budget_two, 2, bins)
+
+        self.plotLagDROModels("distributional_PGD", budget_two, 2, bins)
 
     def plotDROModels(self, budget, norm, bins):
         """
@@ -262,7 +227,7 @@ class LossFunctionsAnalysis(AnalysisMulitpleModels):
 
         def initializeAnalyzers(dro_type, activation, budget):
             analyzers = []
-            filepath = folderpath = "./experiment_models/"
+            filepath = folderpath = "./Loss_models/"
             for i in range(1, 8):
                 filepath = folderpath + "{}_DRO_activation={}_epsilon={}_loss={}.pt".format(
                     dro_type, activation, budget, "f_{}".format(i))
@@ -284,7 +249,7 @@ class LossFunctionsAnalysis(AnalysisMulitpleModels):
         Plot adversarial atack success rates of the following two types of
         neural networks with the seven loss functions given in Carlini &
         Wagner:
-        - activation: ReLU; training procedure: the Frank-Wolfe method
+        - activation: ReLU; training procedure: the Frank-Wolfe method (FW)
         - activation: ELU; training procedure: PGD.
         """
 
@@ -316,7 +281,7 @@ class LossFunctionsAnalysis(AnalysisMulitpleModels):
         fig.set_size_inches(width * 1.8, height)
 
         # plt.show()
-        filepath = "./experiment_images/Loss_adversarial_type={}_norm={}.png".format(
+        filepath = "./images/Loss_adversarial_type={}_norm={}.png".format(
             adversarial_type, "L2" if norm == 2 else "Linf")
         plt.savefig(filepath, dpi=300)
         print("Graph now saved at {}".format(filepath))
@@ -367,7 +332,7 @@ class LossFunctionsAnalysis(AnalysisMulitpleModels):
         fig.set_size_inches(width * 1.8, height)
 
         # plt.show()
-        filepath = "./experiment_images/Loss_Lag_norm={}.png".format(
+        filepath = "./images/Loss_Lag_norm={}.png".format(
             "L2" if norm == 2 else "Linf")
         plt.savefig(filepath, dpi=300)
         print("Graph now saved at {}".format(filepath))
@@ -385,18 +350,18 @@ if __name__ == '__main__':
     erm_analysis.plotERMModels(budget=budget_inf, norm=np.inf, bins=bins)
     """
 
-    """
-    dro_analysis = DROAModelsnalysis()
-    dro_analysis.compareLagDROModels(budget_two=budget_two, budget_inf=budget_inf, bins=bins)
-    dro_analysis.plotDROModels(budget=budget_two, norm=2, bins=bins)
+    dro_analysis = DROModelsAnalysis()
+    # dro_analysis.compareLagDROModels(budget_two=budget_two, budget_inf=budget_inf, bins=bins)
+    # dro_analysis.plotDROModels(budget=budget_two, norm=2, bins=bins)
     dro_analysis.plotDROModels(budget=budget_inf, norm=np.inf, bins=bins)
+
     """
-
-
     loss_analysis = LossFunctionsAnalysis()
     loss_analysis.compareLosses(budget_two=budget_two, budget_inf=budget_inf, bins=bins)
     loss_analysis.pltoRobustnessLagModels(budget=budget_inf, norm=np.inf, bins=bins)
     loss_analysis.pltoRobustnessLagModels(budget=budget_two, norm=2, bins=bins)
+    """
+
 
     """
     from loss_functions import f_5, f_6
