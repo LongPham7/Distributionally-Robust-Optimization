@@ -38,14 +38,14 @@ class Analysis:
         """
 
         batch_size = 512 if adversarial_type == "distributional_PGD" else 128
-        max_iter = 15
+        
+        # Numbers of iterations for pointwise and distributional PGD attacks
+        max_iter_point, max_iter_dist = 15, 40
         test_loader = retrieveMNISTTestData(batch_size=batch_size)
         criterion = nn.CrossEntropyLoss()
         if adversarial_type == "FGSM":
             adversarial_module = FGSM(
                 self.model, criterion, norm=norm, batch_size=batch_size)
-            #adversarial_module = FGSMNative(
-            #   self.model, criterion, norm=norm, batch_size=batch_size)
         elif adversarial_type == 'PGD':
             adversarial_module = PGD(
                 self.model, criterion, norm=norm, batch_size=batch_size)
@@ -56,10 +56,7 @@ class Analysis:
 
         # Craft adversarial examples
         total, correct = 0, 0
-        period = 100
         for i, data in enumerate(test_loader):
-            if i == period:
-                break
             images, labels = data
             images, labels = images.to(self.device), labels.to(self.device)
             data = (images, labels)
@@ -69,10 +66,13 @@ class Analysis:
             if adversarial_type == "FGSM":
                 images_adv = adversarial_module.generatePerturbation(
                     data, budget)
-            else:
-                # For pointwise and distributional PGD attacks
+            elif adversarial_type == "PGD":
                 images_adv = adversarial_module.generatePerturbation(
-                    data, budget, max_iter=max_iter)
+                    data, budget, max_iter=max_iter_point)
+            else:
+                # For distributional PGD attacks
+                images_adv = adversarial_module.generatePerturbation(
+                    data, budget, max_iter=max_iter_dist)
             with torch.no_grad():
                 softmax = nn.Softmax(dim=1)
                 outputs = softmax(self.model(images_adv))

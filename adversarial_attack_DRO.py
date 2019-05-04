@@ -28,7 +28,7 @@ class ProjetcedDRO(AdversarialTraining):
 
             Arguments:
                 origin: origin of the L2-ball
-                epsilon: radisu of the L2-ball
+                epsilon: radius of the L2-ball
             Returns:
                 a random point on the perimeter of the specified L2-ball
             """
@@ -263,7 +263,7 @@ def trainDROModel(dro_type, epochs, steps_adv, budget, activation, batch_size, l
 if __name__ == "__main__":
     epochs = 25
     steps_adv = 15
-    epsilon = 0.1
+    epsilon = 2.8
     gammas = [0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0]
     batch_size = 128
     loss_criterion = nn.CrossEntropyLoss()

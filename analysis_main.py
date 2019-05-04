@@ -101,7 +101,7 @@ class DROModelsAnalysis(AnalysisMulitpleModels):
                 Lag_elu_analyzers.append(Analysis(model_elu, filepath_elu))
             return Lag_relu_analyzers, Lag_elu_analyzers
 
-        def initializeAnalyzers(dro_type):
+        def initializeAnalyzers(dro_type, epsilon):
             """
             Initialize Analysis objects for neural networks trained by the
             Frank-Wolfe method and PGD
@@ -110,10 +110,10 @@ class DROModelsAnalysis(AnalysisMulitpleModels):
             folderpath = "./DRO_models/"
             filepath_relu = folderpath + \
                 "{}_DRO_activation={}_epsilon={}.pt".format(
-                    dro_type, "relu", 0.1)
+                    dro_type, "relu", epsilon)
             filepath_elu = folderpath + \
                 "{}_DRO_activation={}_epsilon={}.pt".format(
-                    dro_type, "elu", 0.1)
+                    dro_type, "elu", epsilon)
             model_relu = MNISTClassifier(activation='relu')
             model_elu = MNISTClassifier(activation='elu')
             analyzer_relu = Analysis(model_relu, filepath_relu)
@@ -122,9 +122,9 @@ class DROModelsAnalysis(AnalysisMulitpleModels):
 
         self.Lag_relu_analyzers, self.Lag_elu_analyzers = initializeLagAnalyzers()
         self.FW_relu_analyzer, self.FW_elu_analyzer = initializeAnalyzers(
-            dro_type='FW')
+            dro_type='FW', epsilon=2.8)
         self.PGD_relu_analyzer, self.PGD_elu_analyzer = initializeAnalyzers(
-            dro_type='PGD')
+            dro_type='PGD', epsilon=2.8)
 
     def plotLagDROModels(self, adversarial_type, budget, norm, bins):
         """
@@ -352,7 +352,8 @@ if __name__ == '__main__':
 
     dro_analysis = DROModelsAnalysis()
     # dro_analysis.compareLagDROModels(budget_two=budget_two, budget_inf=budget_inf, bins=bins)
-    # dro_analysis.plotDROModels(budget=budget_two, norm=2, bins=bins)
+    # dro_analysis.compareLagDROModels(budget_two=10.0, budget_inf=None, bins=40)
+    dro_analysis.plotDROModels(budget=budget_two, norm=2, bins=bins)
     dro_analysis.plotDROModels(budget=budget_inf, norm=np.inf, bins=bins)
 
     """
@@ -361,7 +362,6 @@ if __name__ == '__main__':
     loss_analysis.pltoRobustnessLagModels(budget=budget_inf, norm=np.inf, bins=bins)
     loss_analysis.pltoRobustnessLagModels(budget=budget_two, norm=2, bins=bins)
     """
-
 
     """
     from loss_functions import f_5, f_6
