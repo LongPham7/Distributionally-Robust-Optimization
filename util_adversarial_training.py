@@ -87,5 +87,5 @@ class AdversarialTraining:
                 loss = self.loss_criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
-                if i % 100 == 99:
-                    print("Epoch: {}, iteration: {}".format(epoch, i))
+                # if i % 100 == 99:
+                #     print("Epoch: {}, iteration: {}".format(epoch, i))

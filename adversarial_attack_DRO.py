@@ -27,10 +27,12 @@ class ProjetcedDRO(AdversarialTraining):
             This point is where the L2-norm-ball constraint is tight. 
 
             Arguments:
-                origin: origin of the L2-ball
+                center: origin of the L2-ball
                 epsilon: radius of the L2-ball
             Returns:
-                a random point on the perimeter of the specified L2-ball
+                None
+
+                The input 'center' is modified in place. 
             """
 
             direction = torch.rand(center.size()) * 2 - 1

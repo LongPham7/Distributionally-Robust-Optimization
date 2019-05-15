@@ -34,7 +34,7 @@ def f_4(outputs, labels):
 
 
 def f_5(outputs, labels):
-    # Note that in the original version, the base of e is used instead of 2. 
+    # Note that in the original version, the base of e is used instead of 2.
 
     outputs = F.softmax(outputs, dim=1)
     reference_outputs = torch.gather(
@@ -95,44 +95,17 @@ def trainModelLoss(dro_type, epochs, steps_adv, budget, activation, batch_size, 
 if __name__ == "__main__":
     epochs = 25
     steps_adv = 15
-    epsilon = 0.1
+    epsilon = 2.8
     optimal_gamma = 1.0
     batch_size = 128
     loss_criterions = [f_1, f_2, f_3, f_4, f_5, f_6, f_7]
-    #loss_criterions = [f_1, f_2, f_3]
-    #loss_criterions = [f_4, f_5]
-    #loss_criterions = [f_6, f_7]
 
     def cost_function(x, y): return torch.dist(x, y, p=2) ** 2
 
     for loss_criterion in loss_criterions:
-        trainModelLoss("FW", epochs, steps_adv, epsilon, "relu", batch_size, loss_criterion)
-        trainModelLoss("PGD", epochs, steps_adv, epsilon, "elu", batch_size, loss_criterion)
+        trainModelLoss("FW", epochs, steps_adv, epsilon,
+                       "relu", batch_size, loss_criterion)
+        trainModelLoss("PGD", epochs, steps_adv, epsilon,
+                       "relu", batch_size, loss_criterion)
         trainModelLoss("Lag", epochs, steps_adv, optimal_gamma, "relu",
                        batch_size, loss_criterion, cost_function=cost_function)
-  
-    """
-    data_loader = retrieveMNISTTrainingData(batch_size=1, shuffle=True)
-    iterator = iter(data_loader)
-    images, labels = iterator.next()
-
-    print("Shape of image: {}; shape of labels: {}".format(images.size(), labels.size()))
-    #print("images: {}".format(images))
-    print("labels: {}".format(labels))
-
-    from util_model import loadModel
-
-    dro_type = "PGD"
-    activation = "elu"
-    budget = 0.1
-    loss_criterion = f_5
-    folderpath = "./Loss_models/"
-    filepath = folderpath + "{}_DRO_activation={}_epsilon={}_loss={}.pt".format(dro_type, activation, budget, loss_criterion.__name__)
-    model_skeleton = MNISTClassifier(activation=activation)
-    model = loadModel(model_skeleton, filepath)
-    raw_outputs = model(images)
-    outputs = F.softmax(raw_outputs, dim=1)
-    print("Raw output: {}".format(raw_outputs))
-    print("Softmax outputs: {}".format(outputs))
-    print("Loss: {}".format(loss_criterion(raw_outputs, labels)))
-    """

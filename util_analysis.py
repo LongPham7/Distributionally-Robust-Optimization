@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from util_MNIST import retrieveMNISTTestData
 from util_model import loadModel, evaluateModelAccuracy
-from adversarial_attack import FGSM, PGD, FGSMNative, DistributionalPGD
+from util_adversarial_attack import FGSM, PGD, FGSMNative, DistributionalPGD
 
 
 class Analysis:

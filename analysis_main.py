@@ -235,45 +235,45 @@ class LossFunctionsAnalysis(AnalysisMulitpleModels):
                 analyzers.append(Analysis(model, filepath))
             return analyzers
 
-        epsilon = 0.1
+        epsilon = 2.8
         optimal_gamma = 1.0
         self.FWAnalyzers = initializeAnalyzers(
             "FW", activation='relu', budget=epsilon)
         self.PGDAnalyzers = initializeAnalyzers(
-            "PGD", activation='elu', budget=epsilon)
+            "PGD", activation='relu', budget=epsilon)
         self.LagAnalyzers = initializeAnalyzers(
             "Lag", activation='relu', budget=optimal_gamma)
 
-    def plotModelsWithLosses(self, adversarial_type, budget, norm, bins, record):
-        """
-        Plot adversarial atack success rates of the following two types of
-        neural networks with the seven loss functions given in Carlini &
-        Wagner:
-        - activation: ReLU; training procedure: the Frank-Wolfe method (FW)
-        - activation: ELU; training procedure: PGD.
-        """
-
+    def plotLosses(self, training_type, budget, norm, bins, record):
         labels = [r"$f_{}$".format(i) for i in range(1, 8)]
 
         fig, (ax1, ax2) = plt.subplots(1, 2)
 
+        if training_type == "PGD":
+            analyzers = self.PGDAnalyzers
+        elif training_type == "FW":
+            analyzers = self.FWAnalyzers
+        elif training_type == "Lag":
+            analyzers = self.LagAnalyzers
+        else:
+            raise ValueError("The type of DRO is invalid.")
+
         if record:
-            record_filepath = "./records/Loss_analysis_{}_norm={}.txt".format(
-                adversarial_type, "L2" if norm == 2 else "Linf")
-            with open(record_filepath, mode='w') as f:
+            record_filepath = "./records/Loss_analysis_DRO_type={}_norm={}budget={}.txt".format(
+                training_type, "L2" if norm == 2 else "Linf", budget)
+            with open(record_filepath, "w") as f:
                 self.plotPerturbationLineGraph(
-                    ax1, self.FWAnalyzers, labels, adversarial_type, budget, norm, bins, f)
+                    ax1, analyzers, labels, "FGSM", budget, norm, bins, f)
                 self.plotPerturbationLineGraph(
-                    ax2, self.PGDAnalyzers, labels, adversarial_type, budget, norm, bins, f)
+                    ax2, analyzers, labels, "PGD", budget, norm, bins, f)
                 print("Record stored at {}".format(record_filepath))
         else:
             self.plotPerturbationLineGraph(
-                ax1, self.FWAnalyzers, labels, adversarial_type, budget, norm, bins, None)
+                ax1, analyzers, labels, "FGSM", budget, norm, bins, None)
             self.plotPerturbationLineGraph(
-                ax2, self.PGDAnalyzers, labels, adversarial_type, budget, norm, bins, None)
+                ax2, analyzers, labels, "PGD", budget, norm, bins, None)
 
-
-        ax1.set_title("FW")
+        ax1.set_title("FGSM")
         ax2.set_title("PGD")
         plt.tight_layout()
 
@@ -281,8 +281,8 @@ class LossFunctionsAnalysis(AnalysisMulitpleModels):
         fig.set_size_inches(width * 1.8, height)
 
         # plt.show()
-        filepath = "./images/Loss_adversarial_type={}_norm={}.png".format(
-            adversarial_type, "L2" if norm == 2 else "Linf")
+        filepath = "./images/Loss_{}_norm={}.png".format(
+            training_type, "L2" if norm == 2 else "Linf")
         plt.savefig(filepath, dpi=300)
         print("Graph now saved at {}".format(filepath))
         plt.close()
@@ -293,87 +293,29 @@ class LossFunctionsAnalysis(AnalysisMulitpleModels):
         resulting neural networks.
         """
 
-        self.plotModelsWithLosses("FGSM", budget_inf, np.inf, bins, record)
-        self.plotModelsWithLosses("FGSM", budget_two, 2, bins, record)
+        self.plotLosses("PGD", budget_inf, np.inf, bins, record)
+        self.plotLosses("PGD", budget_two, 2, bins, record)
 
-        self.plotModelsWithLosses("PGD", budget_inf, np.inf, bins, record)
-        self.plotModelsWithLosses("PGD", budget_two, 2, bins, record)
+        self.plotLosses("FW", budget_inf, np.inf, bins, record)
+        self.plotLosses("FW", budget_two, 2, bins, record)
 
-    def pltoRobustnessLagModels(self, budget, norm, bins, record=True):
-        """
-        Plot the adversarial success rates of neural networks trained by WRM
-        with gamma being 1.0 and the seven loss listed in Carlini & Wagner. 
-        """
-
-        labels = [r"$f_{}$".format(i) for i in range(1, 8)]
-
-        fig, (ax1, ax2) = plt.subplots(1, 2)
-
-        if record:
-            record_filepath = "./records/Loss_Lag_analysis_norm={}budget={}.txt".format(
-                "L2" if norm == 2 else "Linf", budget)
-            with open(record_filepath, "w") as f:
-                self.plotPerturbationLineGraph(
-                    ax1, self.LagAnalyzers, labels, "FGSM", budget, norm, bins, f)
-                self.plotPerturbationLineGraph(
-                    ax2, self.LagAnalyzers, labels, "PGD", budget, norm, bins, f)
-                print("Record stored at {}".format(record_filepath))
-        else:
-            self.plotPerturbationLineGraph(
-                ax1, self.LagAnalyzers, labels, "FGSM", budget, norm, bins, None)
-            self.plotPerturbationLineGraph(
-                ax2, self.LagAnalyzers, labels, "PGD", budget, norm, bins, None)
-
-        ax1.set_title("FGSM")
-        ax2.set_title("PGD")
-        plt.tight_layout()
-
-        width, height = fig.get_size_inches()
-        fig.set_size_inches(width * 1.8, height)
-
-        # plt.show()
-        filepath = "./images/Loss_Lag_norm={}.png".format(
-            "L2" if norm == 2 else "Linf")
-        plt.savefig(filepath, dpi=300)
-        print("Graph now saved at {}".format(filepath))
-        plt.close()
-
+        self.plotLosses("Lag", budget_inf, np.inf, bins, record)
+        self.plotLosses("Lag", budget_two, 2, bins, record)
 
 if __name__ == '__main__':
     budget_two = 4.0
     budget_inf = 0.4
     bins = 20
 
-    """
     erm_analysis = ERMModelsAnalysis()
     erm_analysis.plotERMModels(budget=budget_two, norm=2, bins=bins)
     erm_analysis.plotERMModels(budget=budget_inf, norm=np.inf, bins=bins)
-    """
 
     dro_analysis = DROModelsAnalysis()
-    # dro_analysis.compareLagDROModels(budget_two=budget_two, budget_inf=budget_inf, bins=bins)
+    dro_analysis.compareLagDROModels(budget_two=budget_two, budget_inf=budget_inf, bins=bins)
     # dro_analysis.compareLagDROModels(budget_two=10.0, budget_inf=None, bins=40)
     dro_analysis.plotDROModels(budget=budget_two, norm=2, bins=bins)
     dro_analysis.plotDROModels(budget=budget_inf, norm=np.inf, bins=bins)
 
-    """
     loss_analysis = LossFunctionsAnalysis()
     loss_analysis.compareLosses(budget_two=budget_two, budget_inf=budget_inf, bins=bins)
-    loss_analysis.pltoRobustnessLagModels(budget=budget_inf, norm=np.inf, bins=bins)
-    loss_analysis.pltoRobustnessLagModels(budget=budget_two, norm=2, bins=bins)
-    """
-
-    """
-    from loss_functions import f_5, f_6
-
-    dro_type = "PGD"
-    activation = "elu"
-    budget = 0.1
-    folderpath = "./Loss_models/"
-    loss_criterion = f_6
-    filepath = folderpath + "{}_DRO_activation={}_epsilon={}_loss={}.pt".format(dro_type, activation, budget, loss_criterion.__name__)
-    skeleton_model = MNISTClassifier(activation=activation)
-    analyzer = Analysis(skeleton_model, filepath)
-
-    print("Test accuracy: {}".format(analyzer.testAccuracy()))
-    """
