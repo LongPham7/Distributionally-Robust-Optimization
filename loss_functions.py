@@ -8,7 +8,7 @@ from adversarial_attack_DRO import ProjetcedDRO, LagrangianDRO, FrankWolfeDRO
 
 """
 This module contains the seven loss functions listed in Carlini and Wagneer
-(2017).
+(2017) with a minor modification in the constant in f_5. 
 """
 
 

@@ -6,6 +6,12 @@ from util_MNIST import retrieveMNISTTestData
 from util_model import loadModel, evaluateModelAccuracy
 from util_adversarial_attack import FGSM, PGD, FGSMNative, DistributionalPGD
 
+"""
+This module contains two base classes for analysis of the robustness of neural
+networks. The first class, Analysis, wraps a single neural network, and the
+second class, AnalysisMulitpleModels, supports analysis on a list of
+neural networks. 
+"""
 
 class Analysis:
 
@@ -126,6 +132,8 @@ class AnalysisMulitpleModels:
 
         Arguments:
             ax: Axes object (in pyplot) where a plot a drawn
+            analyzers: list of Analysis objects
+            labels: list of labels of the Analysis objects in the input list
             bins: the number of different budgets to examine
             record_file: file object to be used to record the adversarial
                 attack success rates

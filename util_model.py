@@ -10,7 +10,7 @@ img_rows, img_cols = 28, 28
 class SimpleNeuralNet(nn.Module):
     """
     Simple neural network consisting of one hidden layer for MNIST.
-    This neural network is used as a toy example. 
+    This neural network is only used as a toy example. 
     """
 
     def __init__(self):

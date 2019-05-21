@@ -7,6 +7,11 @@ from util_MNIST import retrieveMNISTTrainingData
 from util_model import SimpleNeuralNet, MNISTClassifier
 from util_adversarial_training import AdversarialTraining
 
+"""
+This module contains the implementation of the three DRO algorithms 
+studied in this project: FWDRO by Staib et al., WRM by Sinha et al.,
+and distributional PGD. 
+"""
 
 class ProjetcedDRO(AdversarialTraining):
     """

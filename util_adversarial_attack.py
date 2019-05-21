@@ -16,8 +16,8 @@ This module contains classes for adversarial attacks.
 
 def wrapModel(model, loss_criterion):
     """
-    Wrap a PyTorch model in the frametwork of ART (Adversarial Robustness
-    Toolbox) by IBM.
+    Wrap a PyTorch model using a wrapper provided by ART (Adversarial
+    Robustness Toolbox) by IBM.
     """
 
     optimizer = optim.Adam(model.parameters())
@@ -74,7 +74,8 @@ class FGSMNative:
     module. For some unknown reason, this class produces a different
     performance in adversarial attacks from the FGSM class. The performance of
     FGSMNative is better than that of FGSM only in some cases (and not in all
-    cases). Also, the difference is not significant. 
+    cases). Additionally, the difference between the FGSM class and the 
+    FGSMNative class is not significant. 
     """
 
     def __init__(self, model, loss_criterion, norm=np.inf, batch_size=128):
